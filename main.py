@@ -10,14 +10,23 @@ from apps.sit_api.socket import BleWebsocket
 from apps.sit_ble.ble import BleGateway
 
 
-def main():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+async def main():
     ble_gateway = BleGateway()
     socket = BleWebsocket(ble_gateway)
-
-    loop.run_until_complete(socket.connect())
+    try:
+        task = asyncio.create_task(socket.connect())
+        await task
+        # # TODO ensure_future is deprecated find other solution
+        # asyncio.ensure_future(device.manager(test_id))
+        # asyncio.ensure_future(main())
+        # loop.run_forever()
+    except KeyboardInterrupt:
+        print()
+        print("User stopped program.")
+    finally:
+        print("Disconnecting...")
+        await ble_gateway.cleanup()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
