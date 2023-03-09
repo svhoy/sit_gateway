@@ -30,6 +30,7 @@ class BleWebsocket:
         uri = HOST + "ws/ble-devices/"
         async for websocket in websockets.connect(uri):
             self.websocket = websocket
+            await self.send_websocket_connection()
             try:
                 # Process messages received on the connection.
                 async for text_data in websocket:
@@ -42,10 +43,17 @@ class BleWebsocket:
                                 scan["device_name"]
                             )
                             if conn_state is True:
-                                await self.send_connection_msg(
+                                if self.ble_gateway.isConnected():
+                                    connection = "complete"
+                                    device_name = scan["device_name"]
+                                else:
+                                    connection = "error"
+                                    device_name = ""
+
+                                await self.send_ble_connection_msg(
                                     websocket,
-                                    "complete",
-                                    scan["device_name"],
+                                    connection,
+                                    device_name,
                                 )
                                 await asyncio.sleep(5.0)
                                 command = 5
@@ -57,18 +65,40 @@ class BleWebsocket:
                                 )
                                 await self._distance_notify_task
                             else:
-                                await self.send_connection_msg(
+                                await self.send_ble_connection_msg(
                                     websocket,
-                                    "error",
+                                    "notFound",
                                     "",
                                 )
+                        case {"type": "connection_ping"}:
+                            await self.send_websocket_ping()
 
             except websockets.ConnectionClosedError as e:
                 logger.error(e)
                 logger.error("Connection is closed, try reconnect")
                 continue
 
-    async def send_connection_msg(self, websocket, connection, device_name):
+    async def send_websocket_connection(self):
+        await self.websocket.send(
+            json.dumps(
+                {
+                    "type": "connection_register",
+                    "device_id": "PI_Home",
+                }
+            )
+        )
+
+    async def send_websocket_ping(self):
+        await self.websocket.send(
+            json.dumps(
+                {
+                    "type": "connection_ping",
+                    "device_id": "PI_Home",
+                }
+            )
+        )
+
+    async def send_ble_connection_msg(self, websocket, connection, device_name):
         await websocket.send(
             json.dumps(
                 {
@@ -90,6 +120,7 @@ class BleWebsocket:
                 logger.info("{}: {}".format(device.name, device.address))
                 logger.info("UUIDs: {}".format(device.metadata["uuids"]))
                 asyncio.create_task(self.ble_gateway.connect_device(device))
+                await asyncio.sleep(5.0)
                 return True
         return False
 

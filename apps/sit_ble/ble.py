@@ -33,26 +33,23 @@ class BleGateway:
         if self._isConnected:
             return
         self._set_client(device=device)
-        error = True
-        while error:
-            try:
-                await self._client.connect()
-                self._isConnected = self._client.is_connected()
-                error = False
-                if self._isConnected:
-                    logger.info(f"Connected to {device.name}")
-                    for service in self._client.services:
-                        logger.info("Services: {}".format(service))
-                        for char in service.characteristics:
-                            logger.info("Char: {}".format(char))
-                    while True:
-                        if not self._isConnected:
-                            break
-                        await asyncio.sleep(5.0)
-            except Exception as e:
-                logger.error("Exeption: {}".format(e))
-                # self._connected_device.clear()
-                # self._client = None
+        try:
+            await self._client.connect()
+            self._isConnected = self._client.is_connected
+            if self._isConnected:
+                logger.info(f"Connected to {device.name}")
+                for service in self._client.services:
+                    logger.info("Services: {}".format(service))
+                    for char in service.characteristics:
+                        logger.info("Char: {}".format(char))
+                while True:
+                    if not self._isConnected:
+                        break
+                    await asyncio.sleep(5.0)
+        except Exception as e:
+            logger.error("Exeption: {}".format(e))
+            self._connected_device.clear()
+            self._client = None
 
     async def disconnect_device(self):
         await self._client.disconnect()
