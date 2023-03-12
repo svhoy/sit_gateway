@@ -35,6 +35,7 @@ class BleWebsocket:
                 # Process messages received on the connection.
                 async for text_data in websocket:
                     data = json.loads(text_data)
+                    logger.info(data)
                     match data:
                         case {"type": "scanning_state", "scan": scan} if scan[
                             "state"
@@ -63,13 +64,19 @@ class BleWebsocket:
                                 self._distance_notify_task = (
                                     asyncio.create_task(self.enable_notify())
                                 )
-                                await self._distance_notify_task
                             else:
                                 await self.send_ble_connection_msg(
                                     websocket,
                                     "notFound",
                                     "",
                                 )
+                        case {"type": "scanning_state", "scan": scan} if scan[
+                            "state"
+                        ] is False and scan["connection"] == "disconnect":
+                            logger.info("test")
+                            await self.ble_gateway.cleanup()
+                            self._distance_notify_task.cancel()
+                            self.ble_connection_task.cancel()
                         case {"type": "connection_ping"}:
                             await self.send_websocket_ping()
 
@@ -119,7 +126,9 @@ class BleWebsocket:
             if device.name == device_name:
                 logger.info("{}: {}".format(device.name, device.address))
                 logger.info("UUIDs: {}".format(device.metadata["uuids"]))
-                asyncio.create_task(self.ble_gateway.connect_device(device))
+                self.ble_connection_task = asyncio.create_task(
+                    self.ble_gateway.connect_device(device)
+                )
                 await asyncio.sleep(5.0)
                 return True
         return False
@@ -133,7 +142,8 @@ class BleWebsocket:
             if self.ble_gateway.isConnected() and not enable_notify:
                 await self.ble_gateway.getNotification(self)
                 enable_notify = True
-            await asyncio.sleep(1)
+            await asyncio.sleep(2)
+            logger.debug("hier")
 
     async def got_distance(self, distance):
         print(distance)
