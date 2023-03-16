@@ -47,7 +47,9 @@ class BleWebsocket:
                                 if self.ble_gateway.isConnected():
                                     connection = "complete"
                                     device_name = scan["device_name"]
+                                    await asyncio.sleep(5.0)
                                 else:
+                                    self.ble_connection_task.cancel()
                                     connection = "error"
                                     device_name = ""
 
@@ -55,14 +57,6 @@ class BleWebsocket:
                                     websocket,
                                     connection,
                                     device_name,
-                                )
-                                await asyncio.sleep(5.0)
-                                command = 5
-                                await self.ble_gateway.write_command(
-                                    command.to_bytes(1, byteorder="big")
-                                )
-                                self._distance_notify_task = (
-                                    asyncio.create_task(self.enable_notify())
                                 )
                             else:
                                 await self.send_ble_connection_msg(
@@ -79,6 +73,21 @@ class BleWebsocket:
                             self.ble_connection_task.cancel()
                         case {"type": "connection_ping"}:
                             await self.send_websocket_ping()
+                        case {"type": "distance_msg", "state": state}:
+                            if state == "start":
+                                command = 5
+                                await self.ble_gateway.write_command(
+                                    command.to_bytes(1, byteorder="big")
+                                )
+                                self._distance_notify_task = (
+                                    asyncio.create_task(self.enable_notify())
+                                )
+                            if state == "stop":
+                                command = 0
+                                await self.ble_gateway.write_command(
+                                    command.to_bytes(1, byteorder="big")
+                                )
+                                self._distance_notify_task.cancel()
 
             except websockets.ConnectionClosedError as e:
                 logger.error(e)
@@ -151,5 +160,11 @@ class BleWebsocket:
 
     async def send_distance_msg(self, distance):
         await self.websocket.send(
-            json.dumps({"type": "distance_msg", "distance": distance})
+            json.dumps(
+                {
+                    "type": "distance_msg",
+                    "state": "scanning",
+                    "distance": distance,
+                }
+            )
         )

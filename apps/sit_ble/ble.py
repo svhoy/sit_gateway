@@ -6,6 +6,7 @@ import struct
 
 # Third Party
 from bleak import BleakClient, BleakScanner, BLEDevice
+from bleak.exc import BleakError
 
 
 LOG_CONFIG_PATH = "settings/logging.conf"
@@ -23,6 +24,7 @@ class BleGateway:
 
     async def scan(self, timeout: float = 10.0) -> list[BLEDevice]:
         _scanner = BleakScanner()
+        print("Test2")
         return await _scanner.discover(timeout=timeout)
 
     def _set_client(self, device: BLEDevice):
@@ -33,6 +35,7 @@ class BleGateway:
         if self._isConnected:
             return
         self._set_client(device=device)
+        logger.info("Im Connector {}: {}".format(device.name, device.address))
         try:
             await self._client.connect()
             self._isConnected = self._client.is_connected
