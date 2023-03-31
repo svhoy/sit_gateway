@@ -3,7 +3,7 @@ async-timeout==4.0.2
 bandit==1.7.4
 bitstring==3.1.9
 black==22.6.0
-bleak==0.19.5
+bleak==0.20.1
 certifi==2022.6.15
 cffi==1.15.1
 charset-normalizer==2.1.0
