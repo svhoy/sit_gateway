@@ -25,6 +25,7 @@ class BleWebsocket:
         # self._auth.login()
         self.ble_gateway = ble_gateway
         self._distance_notify_task = None
+        self.ble_connection_task = None
 
     async def connect(self):
         uri = HOST + "ws/ble-devices/"
@@ -69,31 +70,24 @@ class BleWebsocket:
                         ] is False and scan["connection"] == "disconnect":
                             logger.info("test")
                             await self.ble_gateway.cleanup()
-                            self._distance_notify_task.cancel()
-                            self.ble_connection_task.cancel()
+                            if self._distance_notify_task:
+                                self._distance_notify_task.cancel()
+                            if self.ble_connection_task:
+                                self.ble_connection_task.cancel()
                         case {"type": "connection_ping"}:
                             await self.send_websocket_ping()
-                        case {"type": "distance_msg", "state": state}:
-                            if state == "start":
-                                command = 5
-                                await self.ble_gateway.write_command(
-                                    command.to_bytes(1, byteorder="big")
-                                )
-                                self._distance_notify_task = (
-                                    asyncio.create_task(self.enable_notify())
-                                )
-                            if state == "stop":
-                                command = 0
-                                await self.ble_gateway.write_command(
-                                    command.to_bytes(1, byteorder="big")
-                                )
-                                self._distance_notify_task.cancel()
+                        case {
+                            "type": "distance_msg",
+                            "data": data,
+                        }:
+                            await self.handle_distance_msg(data)
 
             except websockets.ConnectionClosedError as e:
                 logger.error(e)
                 logger.error("Connection is closed, try reconnect")
                 continue
 
+    # Handle Websocket
     async def send_websocket_connection(self):
         await self.websocket.send(
             json.dumps(
@@ -114,6 +108,7 @@ class BleWebsocket:
             )
         )
 
+    # Handle Bluetooth Connection
     async def send_ble_connection_msg(self, websocket, connection, device_name):
         await websocket.send(
             json.dumps(
@@ -152,19 +147,49 @@ class BleWebsocket:
                 await self.ble_gateway.getNotification(self)
                 enable_notify = True
             await asyncio.sleep(2)
-            logger.debug("hier")
 
+    # Handle Distance message
     async def got_distance(self, distance):
         print(distance)
         await self.send_distance_msg(distance)
+
+    async def handle_distance_msg(self, data):
+        match data:
+            case {
+                "state": state,
+                "distance": distance,
+                "test_id": test_id,
+            } if state == "start":
+                self._test_id = test_id
+                command = 5
+                await self.ble_gateway.write_command(
+                    command.to_bytes(1, byteorder="big")
+                )
+                self._distance_notify_task = asyncio.create_task(
+                    self.enable_notify()
+                )
+            case {
+                "state": state,
+                "distance": distance,
+                "test_id": test_id,
+            } if state == "stop":
+                self._test_id = None
+                command = 0
+                await self.ble_gateway.write_command(
+                    command.to_bytes(1, byteorder="big")
+                )
+                self._distance_notify_task.cancel()
 
     async def send_distance_msg(self, distance):
         await self.websocket.send(
             json.dumps(
                 {
                     "type": "distance_msg",
-                    "state": "scanning",
-                    "distance": distance,
+                    "data": {
+                        "state": "scanning",
+                        "distance": distance,
+                        "test_id": self._test_id,
+                    },
                 }
             )
         )
