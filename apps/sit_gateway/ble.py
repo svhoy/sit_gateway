@@ -79,11 +79,15 @@ class Ble:
         await self._client.start_notify(uuid, self.on_notification)
 
     async def on_notification(self, sender: int, data: bytearray):
-        logger.info("test")
-        # distance = struct.unpack("f", data)  # Datatype f for float
-        distance = struct.unpack("s", data)  # Datatype s for char[]
+        msg_type_b, state_b, sequenz, distance = struct.unpack(
+            "15s 15s I f", data
+        )  # Datatype 15 char[] (c string) and float
+        msg_type = msg_type_b.decode("utf-8")
+        state = state_b.decode("utf-8")
+        logger.info("From Handle {} Msg_Type: {}".format(sender, msg_type))
+        logger.info("From Handle {} Sequenz: {}".format(sender, sequenz))
         logger.info("From Handle {} Distance: {}".format(sender, distance))
-        await self._gateway.distance_notify(distance[0])
+        await self._gateway.distance_notify(distance)
 
     def isConnected(self):
         return self._isConnected

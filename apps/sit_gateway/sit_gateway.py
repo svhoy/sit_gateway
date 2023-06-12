@@ -66,6 +66,7 @@ class SITGateway:
     # Bluetooth Connection Manager
     async def start_ble_gateway(self, device_name) -> None:
         conn_state = await self.connect_ble(device_name=device_name)
+        await asyncio.sleep(5.0)
         if conn_state is True:
             if self._ble.isConnected():
                 connection = "complete"
@@ -90,7 +91,7 @@ class SITGateway:
 
     async def connect_ble(self, device_name) -> bool:
         devices = await self._ble.scan(20)
-        print(devices)
+        logger.info(devices)
         for device in devices:
             if device.name == device_name:
                 logger.info("{}: {}".format(device.name, device.address))
@@ -132,7 +133,7 @@ class SITGateway:
         self._test_id = None
         command = {"type": "measurement_msg", "command": "stop"}
         await self.ble_send_json(
-            "6ba1de6b-3ab6-4d77-9ea1-cb6422720002", command
+            "6ba1de6b-3ab6-4d77-9ea1-cb6422720003", command
         )
         if self._distance_notify_task is not None:
             self._distance_notify_task.cancel()

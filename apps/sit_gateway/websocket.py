@@ -20,6 +20,7 @@ class Websocket:
         self,
         gateway,
         host: str = "ws://192.168.0.101:8000/",
+        # host: str = "ws://192.168.137.1:8000/",
         path: str = "ws/ble-devices/",
     ) -> None:
         # self._auth = Authenticator()
