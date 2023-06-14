@@ -99,7 +99,9 @@ class Websocket:
             )
         )
 
-    async def send_distance_msg(self, test_id, distance):
+    async def send_distance_msg(
+        self, test_id, sequence, distance, nlos, rssi, fpi
+    ):
         await self.send(
             json.dumps(
                 {
@@ -108,6 +110,10 @@ class Websocket:
                         "state": "scanning",
                         "distance": distance,
                         "test_id": test_id,
+                        "sequence": sequence,
+                        "nlos": nlos,
+                        "rssi": rssi,
+                        "fpi": fpi,
                     },
                 }
             )

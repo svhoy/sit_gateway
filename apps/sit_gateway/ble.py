@@ -76,18 +76,29 @@ class Ble:
             logger.error("Exeption: {}".format(e))
 
     async def getNotification(self, uuid: str) -> None:
-        await self._client.start_notify(uuid, self.on_notification)
+        await self._client.start_notify(uuid, self.on_distance_notification)
 
-    async def on_notification(self, sender: int, data: bytearray):
-        msg_type_b, state_b, sequenz, distance = struct.unpack(
-            "15s 15s I f", data
-        )  # Datatype 15 char[] (c string) and float
+    async def on_distance_notification(self, sender: int, data: bytearray):
+        (
+            msg_type_b,
+            state_b,
+            sequence,
+            distance,
+            nlos,
+            rssi,
+            fpi,
+        ) = struct.unpack(
+            "15s 15s I f H f f", data
+        )  # Datatype 15 char[] (c string) and f->float and I->uint32_t and H->uint8_t
         msg_type = msg_type_b.decode("utf-8")
         state = state_b.decode("utf-8")
-        logger.info("From Handle {} Msg_Type: {}".format(sender, msg_type))
-        logger.info("From Handle {} Sequenz: {}".format(sender, sequenz))
-        logger.info("From Handle {} Distance: {}".format(sender, distance))
-        await self._gateway.distance_notify(distance)
+        logger.debug("From Handle {} Msg_Type: {}".format(sender, msg_type))
+        logger.debug("From Handle {} Sequence: {}".format(sender, sequence))
+        logger.debug("From Handle {} Distance: {}".format(sender, distance))
+        logger.debug("From Handle {} NLOS: {}".format(sender, nlos))
+        logger.debug("From Handle {} RSSI: {}".format(sender, rssi))
+        logger.debug("From Handle {} FPI: {}".format(sender, fpi))
+        await self._gateway.distance_notify(sequence, distance, nlos, rssi, fpi)
 
     def isConnected(self):
         return self._isConnected

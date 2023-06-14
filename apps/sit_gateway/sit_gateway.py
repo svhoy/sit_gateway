@@ -99,7 +99,7 @@ class SITGateway:
                 self.ble_connection_task = asyncio.create_task(
                     self._ble.connect_device(device)
                 )
-                await asyncio.sleep(5.0)
+                await asyncio.sleep(2.0)
                 return True
         return False
 
@@ -138,5 +138,7 @@ class SITGateway:
         if self._distance_notify_task is not None:
             self._distance_notify_task.cancel()
 
-    async def distance_notify(self, distance):
-        await self._socket.send_distance_msg(self._test_id, distance)
+    async def distance_notify(self, sequence, distance, nlos, rssi, fpi):
+        await self._socket.send_distance_msg(
+            self._test_id, sequence, distance, nlos, rssi, fpi
+        )
