@@ -3,29 +3,21 @@
 # Standard Library
 import asyncio
 
-from contextlib import suppress
-
 # Library
-from apps.sit_api.socket import BleWebsocket
-from apps.sit_ble.ble import BleGateway
+from apps.sit_gateway.sit_gateway import SITGateway
 
 
 async def main():
-    ble_gateway = BleGateway()
-    socket = BleWebsocket(ble_gateway)
+    gateway = SITGateway()
     try:
-        task = asyncio.create_task(socket.connect())
+        task = asyncio.create_task(gateway.start_gateway())
         await task
-        # # TODO ensure_future is deprecated find other solution
-        # asyncio.ensure_future(device.manager(test_id))
-        # asyncio.ensure_future(main())
-        # loop.run_forever()
     except KeyboardInterrupt:
         print()
         print("User stopped program.")
     finally:
         print("Disconnecting...")
-        await ble_gateway.cleanup()
+        await gateway.cleanup()
 
 
 if __name__ == "__main__":
