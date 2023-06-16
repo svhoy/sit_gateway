@@ -102,3 +102,8 @@ class Ble:
 
     def isConnected(self):
         return self._isConnected
+
+    def getDeviceName(self):
+        if len(self._connected_device) == 1:
+            device = next(iter(self._connected_device))
+            return device.name

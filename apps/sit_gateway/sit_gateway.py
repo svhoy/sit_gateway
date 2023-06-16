@@ -46,6 +46,10 @@ class SITGateway:
     # Handle Connection Messanges
     async def handle_ping_msg(self):
         await self._socket.send_websocket_ping()
+        if self._ble.isConnected():
+            await self._socket.send_ble_connection_msg(
+                "complete", self._ble.getDeviceName()
+            )
 
     # Handle Scanning MSG Connection
     async def handle_scanning_msg(self, msg):
@@ -68,6 +72,7 @@ class SITGateway:
         conn_state = await self.connect_ble(device_name=device_name)
         await asyncio.sleep(5.0)
         if conn_state is True:
+            await asyncio.sleep(5.0)
             if self._ble.isConnected():
                 connection = "complete"
             else:
