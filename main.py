@@ -8,16 +8,19 @@ from apps.sit_gateway.sit_gateway import SITGateway
 
 
 async def main():
-    gateway = SITGateway()
-    try:
-        task = asyncio.create_task(gateway.start_gateway())
-        await task
-    except KeyboardInterrupt:
-        print()
-        print("User stopped program.")
-    finally:
-        print("Disconnecting...")
-        await gateway.cleanup()
+    async with asyncio.TaskGroup() as tg:
+        gateway = SITGateway(tg)
+        try:
+            task = tg.create_task(
+                gateway.start_gateway(), name="Gateway Main Task"
+            )
+            await task
+        except KeyboardInterrupt:
+            print()
+            print("User stopped program.")
+        finally:
+            print("Disconnecting...")
+            await gateway.cleanup()
 
 
 if __name__ == "__main__":

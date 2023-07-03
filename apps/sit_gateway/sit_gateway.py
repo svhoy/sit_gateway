@@ -4,6 +4,10 @@ import json
 import logging
 import logging.config
 
+# Third Party
+from bleak import BleakScanner
+from bleak.backends.device import BLEDevice
+
 from .ble import Ble
 from .websocket import Websocket
 
@@ -16,12 +20,13 @@ logger = logging.getLogger("pi_socket")
 
 
 class SITGateway:
-    def __init__(self) -> None:
-        self._ble: Ble = Ble(self)
+    def __init__(self, taskGroup) -> None:
+        self.taskGroup = taskGroup
+        self._ble_list: list[Ble] = []
         self._socket: Websocket = Websocket(self)
 
         self._test_id: int | None = None
-        self._ble_connection_task: asyncio.Task | None = None
+        self._ble_connection_task: list[asyncio.Task] = []
         self._websocket_task: asyncio.Task | None = None
         self._distance_notify_task: asyncio.Task | None = None
 
@@ -29,13 +34,17 @@ class SITGateway:
         await self.start_websocket()
 
     async def cleanup(self):
-        await self._ble.cleanup()
+        for device in self._ble_list:
+            await device.cleanup()
+        self._ble_list.clear()
         if self._distance_notify_task is not None:
             self._distance_notify_task.cancel()
         if self._websocket_task is not None:
             self._websocket_task.cancel()
-        if self._ble_connection_task is not None:
-            self._ble_connection_task.cancel()
+        for task in asyncio.all_tasks():
+            if "Ble Task " in task.get_name():
+                task.cancel()
+                return None
 
     # Websocket Manager
     async def start_websocket(self) -> None:
@@ -46,18 +55,18 @@ class SITGateway:
     # Handle Connection Messanges
     async def handle_ping_msg(self):
         await self._socket.send_websocket_ping()
-        if self._ble.isConnected():
-            await self._socket.send_ble_connection_msg(
-                "complete", self._ble.getDeviceName()
-            )
 
     # Handle Scanning MSG Connection
     async def handle_scanning_msg(self, msg):
         match msg:
             case {"state": True, "device_name": device_name}:
                 await self.start_ble_gateway(device_name)
-            case {"state": False, "connection": "disconnect"}:
-                await self.stop_ble_gateway()
+            case {
+                "state": False,
+                "connection": "disconnect",
+                "device_name": device_name,
+            }:
+                await self.stop_ble_gateway(device_name)
 
     # Handle Distance message
     async def handle_distance_msg(self, data):
@@ -69,44 +78,55 @@ class SITGateway:
 
     # Bluetooth Connection Manager
     async def start_ble_gateway(self, device_name) -> None:
-        conn_state = await self.connect_ble(device_name=device_name)
+        ble = await self.connect_ble(device_name=device_name)
         await asyncio.sleep(5.0)
-        if conn_state is True:
+        if ble is not None:
             await asyncio.sleep(5.0)
-            if self._ble.isConnected():
+            # TODO
+            if ble.isConnected():
+                self._ble_list.append(ble)
                 connection = "complete"
             else:
-                if self._ble_connection_task:
-                    self._ble_connection_task.cancel()
+                if len(self._ble_connection_task) >= 1:
+                    connection_task = self._ble_connection_task.pop()
+                    connection_task.cancel()
                 connection = "error"
-                device_name = ""
             await self._socket.send_ble_connection_msg(
                 connection,
                 device_name,
             )
         else:
-            await self._socket.send_ble_connection_msg("notFound")
+            await self._socket.send_ble_connection_msg("notFound", device_name)
 
-    async def stop_ble_gateway(self) -> None:
-        await self._ble.cleanup()
-        if self._distance_notify_task:
-            self._distance_notify_task.cancel()
-        if self._ble_connection_task:
-            self._ble_connection_task.cancel()
+    async def stop_ble_gateway(self, device_name) -> None:
+        index = self.get_device_index(device_name)
+        if index is not None:
+            ble = self._ble_list.pop(index)
+            await ble.cleanup()
+            if self._distance_notify_task:
+                self._distance_notify_task.cancel()
+            self.cancel_task("Ble Task " + device_name)
 
-    async def connect_ble(self, device_name) -> bool:
-        devices = await self._ble.scan(20)
+    async def scan(self, timeout: float = 10.0) -> list[BLEDevice]:
+        _scanner = BleakScanner()
+        return await _scanner.discover(timeout=timeout)
+
+    async def connect_ble(self, device_name) -> Ble | None:
+        devices = await self.scan(20)
         logger.info(devices)
         for device in devices:
-            if device.name == device_name:
+            if device_name in device.name:
+                ble = Ble(self)
                 logger.info("{}: {}".format(device.name, device.address))
                 logger.info("UUIDs: {}".format(device.metadata["uuids"]))
-                self.ble_connection_task = asyncio.create_task(
-                    self._ble.connect_device(device)
+                task_name = "Ble Task " + device_name
+                self.taskGroup.create_task(
+                    ble.connect_device(device),
+                    name=task_name,
                 )
                 await asyncio.sleep(2.0)
-                return True
-        return False
+                return ble
+        return None
 
     async def enable_notify(self):
         enable_notify = False
@@ -118,12 +138,12 @@ class SITGateway:
                 enable_notify = True
             await asyncio.sleep(2)
 
-    async def ble_send_json(self, uuid, command):
+    async def ble_send_json(self, ble, uuid, command):
         json_msg = json.dumps(command).encode("utf-8")
-        await self._ble.write_command(uuid, json_msg)
+        await ble.write_command(uuid, json_msg)
 
     async def ble_send_int(self, uuid: str, intger: int) -> None:
-        await self._ble.write_command(uuid, intger.to_bytes(1, byteorder="big"))
+        await ble.write_command(uuid, intger.to_bytes(1, byteorder="big"))
 
     async def start_measurement(self, test_id: int | None):
         self._test_id = test_id
@@ -143,7 +163,28 @@ class SITGateway:
         if self._distance_notify_task is not None:
             self._distance_notify_task.cancel()
 
-    async def distance_notify(self, sequence, distance, nlos, rssi, fpi):
+    async def distance_notify(self, id, sequence, distance, nlos, rssi, fpi):
         await self._socket.send_distance_msg(
             self._test_id, sequence, distance, nlos, rssi, fpi
         )
+
+    def get_device_index(self, device_name) -> int | None:
+        index = 0
+        for device in self._ble_list:
+            if device_name in device.getDeviceName():
+                return index
+            else:
+                index += 1
+        return None
+
+    def get_device(self, device_name) -> Ble | None:
+        for device in self._ble_list:
+            if device_name in device.getDeviceName():
+                return device
+        return None
+
+    def cancel_task(self, task_name) -> asyncio.Task | None:
+        for task in asyncio.all_tasks():
+            if task.get_name() == task_name:
+                task.cancel()
+                return None

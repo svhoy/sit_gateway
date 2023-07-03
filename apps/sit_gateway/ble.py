@@ -5,7 +5,7 @@ import logging.config
 import struct
 
 # Third Party
-from bleak import BleakClient, BleakScanner
+from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 
 
@@ -20,17 +20,13 @@ class Ble:
     def __init__(self, gateway) -> None:
         self._gateway = gateway
 
-        self._client: BleakClient | None = None
+        self._client: BleakClient
         self._isConnected: bool = False
-        self._connected_device: set = set()
-
-    async def scan(self, timeout: float = 10.0) -> list[BLEDevice]:
-        _scanner = BleakScanner()
-        return await _scanner.discover(timeout=timeout)
+        self._connected_device: BLEDevice
 
     def _set_client(self, device: BLEDevice):
         self._client = BleakClient(device.address, self._on_disconnect)
-        self._connected_device.add(device)
+        self._connected_device = device
 
     async def connect_device(self, device: BLEDevice):
         if self._isConnected:
@@ -52,7 +48,7 @@ class Ble:
                     await asyncio.sleep(5.0)
         except Exception as e:
             logger.error("Exeption: {}".format(e))
-            self._connected_device.clear()
+            self._connected_device = None
             self._client = None
 
     async def disconnect_device(self):
@@ -64,8 +60,8 @@ class Ble:
             await self.disconnect_device()
 
     async def _on_disconnect(self, client: BleakClient):
-        logger.info(f"Disconnected from {list(self._connected_device)[0]}!")
-        self._connected_device.clear()
+        logger.info(f"Disconnected from {self._connected_device.name}!")
+        self._connected_device = None
         self._isConnected = False
 
     async def write_command(self, uuid: str, byte_data):
@@ -98,12 +94,13 @@ class Ble:
         logger.debug("From Handle {} NLOS: {}".format(sender, nlos))
         logger.debug("From Handle {} RSSI: {}".format(sender, rssi))
         logger.debug("From Handle {} FPI: {}".format(sender, fpi))
-        await self._gateway.distance_notify(sequence, distance, nlos, rssi, fpi)
+        await self._gateway.distance_notify(
+            self.getDeviceName(), sequence, distance, nlos, rssi, fpi
+        )
 
     def isConnected(self):
         return self._isConnected
 
     def getDeviceName(self):
-        if len(self._connected_device) == 1:
-            device = next(iter(self._connected_device))
-            return device.name
+        if self._connected_device is not None:
+            return self._connected_device.name
