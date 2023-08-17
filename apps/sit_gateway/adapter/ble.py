@@ -8,6 +8,9 @@ import struct
 from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 
+# Library
+from apps.sit_gateway.domain import events
+
 
 LOG_CONFIG_PATH = "settings/logging.conf"
 
@@ -71,7 +74,8 @@ class Ble:
         except Exception as e:
             logger.error("Exeption: {}".format(e))
 
-    async def getNotification(self, uuid: str) -> None:
+    async def getNotification(self, uuid: str, bus) -> None:
+        self._bus = bus
         await self._client.start_notify(uuid, self.on_distance_notification)
 
     async def on_distance_notification(self, sender: int, data: bytearray):
@@ -88,19 +92,21 @@ class Ble:
         )  # Datatype 15 char[] (c string) and f->float and I->uint32_t and H->uint8_t
         msg_type = msg_type_b.decode("utf-8")
         state = state_b.decode("utf-8")
-        logger.debug("From Handle {} Msg_Type: {}".format(sender, msg_type))
-        logger.debug("From Handle {} Sequence: {}".format(sender, sequence))
-        logger.debug("From Handle {} Distance: {}".format(sender, distance))
-        logger.debug("From Handle {} NLOS: {}".format(sender, nlos))
-        logger.debug("From Handle {} RSSI: {}".format(sender, rssi))
-        logger.debug("From Handle {} FPI: {}".format(sender, fpi))
-        await self._gateway.distance_notify(
-            self.getDeviceName(), sequence, distance, nlos, rssi, fpi
+        # logger.debug("From Handle {} Msg_Type: {}".format(sender, msg_type))
+        # logger.debug("From Handle {} Sequence: {}".format(sender, sequence))
+        # logger.debug("From Handle {} Distance: {}".format(sender, distance))
+        # logger.debug("From Handle {} NLOS: {}".format(sender, nlos))
+        # logger.debug("From Handle {} RSSI: {}".format(sender, rssi))
+        # logger.debug("From Handle {} FPI: {}".format(sender, fpi))
+        await self._bus.handle(
+            events.DistanceMeasurement(
+                self.getDeviceName(), sequence, distance, nlos, rssi, fpi
+            )
         )
 
     def isConnected(self):
         return self._isConnected
 
-    def getDeviceName(self):
+    def getDeviceName(self) -> str:
         if self._connected_device is not None:
             return self._connected_device.name
