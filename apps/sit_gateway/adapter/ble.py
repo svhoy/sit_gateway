@@ -4,6 +4,8 @@ import logging
 import logging.config
 import struct
 
+from typing import Callable
+
 # Third Party
 from bleak import BleakClient
 from bleak.backends.device import BLEDevice
@@ -74,34 +76,37 @@ class Ble:
         except Exception as e:
             logger.error("Exeption: {}".format(e))
 
-    async def getNotification(self, uuid: str, bus) -> None:
-        self._bus = bus
+    async def getNotification(self, uuid: str, callback: Callable) -> None:
+        self._callback = callback
         await self._client.start_notify(uuid, self.on_distance_notification)
 
     async def on_distance_notification(self, sender: int, data: bytearray):
         (
             msg_type_b,
             state_b,
+            responder,
             sequence,
+            measurements,
             distance,
             nlos,
             rssi,
             fpi,
         ) = struct.unpack(
-            "15s 15s I f H f f", data
+            "15s 15s I I I f H f f", data
         )  # Datatype 15 char[] (c string) and f->float and I->uint32_t and H->uint8_t
         msg_type = msg_type_b.decode("utf-8")
         state = state_b.decode("utf-8")
         # logger.debug("From Handle {} Msg_Type: {}".format(sender, msg_type))
         # logger.debug("From Handle {} Sequence: {}".format(sender, sequence))
+        logger.debug(
+            "From Handle {} Measurements: {}".format(sender, measurements)
+        )
         # logger.debug("From Handle {} Distance: {}".format(sender, distance))
         # logger.debug("From Handle {} NLOS: {}".format(sender, nlos))
         # logger.debug("From Handle {} RSSI: {}".format(sender, rssi))
         # logger.debug("From Handle {} FPI: {}".format(sender, fpi))
-        await self._bus.handle(
-            events.DistanceMeasurement(
-                self.getDeviceName(), sequence, distance, nlos, rssi, fpi
-            )
+        await self._callback(
+            responder, sequence, measurements, distance, nlos, rssi, fpi
         )
 
     def isConnected(self):

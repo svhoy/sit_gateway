@@ -47,11 +47,49 @@ class MeasurementRunning(Event):
 @dataclass
 class DistanceMeasurement(Event):
     initiator: str
+    responder: str
     sequence: int
+    measurement: int
     distance: float
     nlos: int
     rssi: float
     fpi: float
+
+
+@dataclass
+class TestMeasurement(Event):
+    test_id: int
+    initiator: str
+    responder: str
+    sequence: int
+    measurement: int
+    distance: float
+    nlos: int
+    rssi: float
+    fpi: float
+
+
+@dataclass
+class CalibrationMeasurement(Event):
+    claibration_id: int
+    initiator: str
+    responder: str
+    sequence: int
+    measurement: int
+    distance: float
+    nlos: int
+    rssi: float
+    fpi: float
+
+
+@dataclass
+class CalibrationMeasurementFinished(Event):
+    calibration_id: int
+
+
+@dataclass
+class CalibrationCalFinished(Event):
+    pass
 
 
 @dataclass

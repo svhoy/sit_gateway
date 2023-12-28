@@ -2,9 +2,8 @@
 import json
 
 # Library
+from apps.sit_gateway.domain import events
 from apps.sit_gateway.entrypoint import websocket
-
-from ...domain import events
 
 
 async def register_ble_connection(
@@ -36,7 +35,49 @@ async def send_distance_measurement(
         "type": "SaveMesurement",
         "data": {
             "initiator": event.initiator,
+            "responder": event.responder,
             "sequence": event.sequence,
+            "measurement": event.measurement,
+            "distance": event.distance,
+            "nlos": event.nlos,
+            "rssi": event.rssi,
+            "fpi": event.fpi,
+        },
+    }
+    await ws.send(json.dumps(message))
+
+
+async def send_test_measurement(
+    event: events.TestMeasurement, ws: websocket.Websocket
+):
+    message = {
+        "type": "SaveTestMeasurement",
+        "data": {
+            "test_id": event.test_id,
+            "initiator": event.initiator,
+            "responder": event.responder,
+            "sequence": event.sequence,
+            "measurement": event.measurement,
+            "distance": event.distance,
+            "nlos": event.nlos,
+            "rssi": event.rssi,
+            "fpi": event.fpi,
+        },
+    }
+    await ws.send(json.dumps(message))
+
+
+async def send_calibration_measurement(
+    event: events.CalibrationMeasurement, ws: websocket.Websocket
+):
+    message = {
+        "type": "SaveCalibrationMeasurement",
+        "data": {
+            "calibration_id": event.claibration_id,
+            "initiator": event.initiator,
+            "responder": event.responder,
+            "sequence": event.sequence,
+            "measurement": event.measurement,
             "distance": event.distance,
             "nlos": event.nlos,
             "rssi": event.rssi,
@@ -47,7 +88,9 @@ async def send_distance_measurement(
 
 
 async def redirect_event(
-    event: events.BleDeviceConnectFailed | events.BleDeviceConnectError,
+    event: events.BleDeviceConnectFailed
+    | events.BleDeviceConnectError
+    | events.CalibrationMeasurementFinished,
     ws: websocket.Websocket,
 ):
     message = event.json
@@ -60,4 +103,7 @@ EVENT_HANDLER = {
     events.BleDeviceConnectFailed: [redirect_event],
     events.BleDeviceDisconnected: [unregister_ble_connection],
     events.DistanceMeasurement: [send_distance_measurement],
+    events.CalibrationMeasurement: [send_calibration_measurement],
+    events.CalibrationMeasurementFinished: [redirect_event],
+    events.TestMeasurement: [send_test_measurement],
 }

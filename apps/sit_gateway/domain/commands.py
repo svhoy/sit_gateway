@@ -46,11 +46,35 @@ class DisconnectBleDevice(Command):
 class StartDistanceMeasurement(Command):
     initiator: str
     responder: list[str]
-    test_id: str | None = None
-    min_measurements: int | None = None
-    max_measurements: int | None = None
+    rx_ant_dly: int = 16385
+    tx_ant_dly: int = 16385
 
 
 @dataclass
 class StopDistanceMeasurement(Command):
+    pass
+
+
+@dataclass
+class StartTestMeasurement(Command):
+    test_id: int
+    initiator: str
+    responder: list[str]
+    min_measurement: int
+    max_measurement: int
+    rx_ant_dly: int = 0
+    tx_ant_dly: int = 0
+
+
+@dataclass
+class StartCalibrationMeasurement(Command):
+    calibration_id: int
+    devices: list[str]
+    max_measurement: int
+    rx_ant_dly: int = 0
+    tx_ant_dly: int = 0
+
+
+@dataclass
+class StartSingleCalibrationMeasurement(Command):
     pass
