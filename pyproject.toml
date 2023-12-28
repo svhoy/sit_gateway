@@ -1,5 +1,5 @@
 [tool.black]
-line-length=80
+line-length=79
 
 [tool.isort]
 import_heading_firstparty = "Library"
