@@ -1,11 +1,9 @@
 # Standard Library
-import asyncio
 import importlib.util
 import json
 import logging
 import logging.config
 import pkgutil
-import sys
 
 # Third Party
 import websockets.client
@@ -54,7 +52,9 @@ class Websocket:
         data = json.loads(data_msg)
         logger.info(data)
         try:
-            message = self.create_dataclass_instance(data["type"], data["data"])
+            message = self.create_dataclass_instance(
+                data["type"], data["data"]
+            )
             if not (
                 isinstance(message, events.BleDeviceConnected)
                 or isinstance(message, events.BleDeviceConnectFailed)
