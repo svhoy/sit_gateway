@@ -28,6 +28,7 @@ class SITGateway:
 
         self.test_id = None
         self.calibration_id: int = 0
+        self._distance_notify_tasks = set()
 
     def set_dependencies(self, tg, bus):
         self.taskGroup = tg
@@ -118,9 +119,17 @@ class SITGateway:
         await self.ble_send_json(
             "6ba1de6b-3ab6-4d77-9ea1-cb6422720003", command, initiator_device
         )
-        self._distance_notify_task = self.taskGroup.create_task(
-            self.enable_notify(initiator_device)
+
+        # TODO Notify für alle Devices Erstellen und dann in ein Set Speichern
+        # beachte die Hinweiße hier: https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
+        self.taskGroup.create_task(
+            self.enable_notify(initiator_device),
+            name="BLE Notify" + initiator_device,
         )
+        for responder in responder_devices:
+            self.taskGroup.create_task(
+                self.enable_notify(responder), name="BLE Notify" + responder
+            )
 
     async def stop_measurement(self):
         command = {"type": "measurement_msg", "command": "stop"}
@@ -128,13 +137,13 @@ class SITGateway:
             await self.ble_send_json(
                 "6ba1de6b-3ab6-4d77-9ea1-cb6422720003", command, responder
             )
+            cancel_task("BLE Notify" + responder)
         await self.ble_send_json(
             "6ba1de6b-3ab6-4d77-9ea1-cb6422720003",
             command,
             self.initiator_device,
         )
-        if self._distance_notify_task is not None:
-            self._distance_notify_task.cancel()
+        cancel_task("BLE Notify" + self.initiator_device)
         self.test_id = None
 
     async def enable_notify(self, initiator_device):
@@ -152,6 +161,7 @@ class SITGateway:
     async def distance_notifcation(
         self, responder, sequence, measurement, distance, nlos, rssi, fpi
     ):
+        print(f"Test: {distance}")
         if self.test_id is not None:
             await self.bus.handle(
                 events.TestMeasurement(

@@ -96,15 +96,15 @@ class Ble:
         )  # Datatype 15 char[] (c string) and f->float and I->uint32_t and H->uint8_t
         msg_type = msg_type_b.decode("utf-8")
         state = state_b.decode("utf-8")
-        # logger.debug("From Handle {} Msg_Type: {}".format(sender, msg_type))
-        # logger.debug("From Handle {} Sequence: {}".format(sender, sequence))
+        logger.debug("From Handle {} Msg_Type: {}".format(sender, msg_type))
+        logger.debug("From Handle {} Sequence: {}".format(sender, sequence))
         logger.debug(
             "From Handle {} Measurements: {}".format(sender, measurements)
         )
-        # logger.debug("From Handle {} Distance: {}".format(sender, distance))
-        # logger.debug("From Handle {} NLOS: {}".format(sender, nlos))
-        # logger.debug("From Handle {} RSSI: {}".format(sender, rssi))
-        # logger.debug("From Handle {} FPI: {}".format(sender, fpi))
+        logger.debug("From Handle {} Distance: {}".format(sender, distance))
+        logger.debug("From Handle {} NLOS: {}".format(sender, nlos))
+        logger.debug("From Handle {} RSSI: {}".format(sender, rssi))
+        logger.debug("From Handle {} FPI: {}".format(sender, fpi))
         await self._callback(
             responder, sequence, measurements, distance, nlos, rssi, fpi
         )
