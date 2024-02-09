@@ -10,8 +10,6 @@ from typing import Callable
 from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 
-# Library
-from apps.sit_gateway.domain import events
 
 
 LOG_CONFIG_PATH = "settings/logging.conf"
@@ -81,30 +79,38 @@ class Ble:
         await self._client.start_notify(uuid, self.on_distance_notification)
 
     async def on_distance_notification(self, sender: int, data: bytearray):
-        (
-            msg_type_b,
-            state_b,
-            responder,
-            sequence,
-            measurements,
-            distance,
-            nlos,
-            rssi,
-            fpi,
-        ) = struct.unpack(
-            "15s 15s I I I f H f f", data
-        )  # Datatype 15 char[] (c string) and f->float and I->uint32_t and H->uint8_t
+        logger.info(f"Daten in Notfiy Function: {data}")
+        
+        try:
+            logger.info(struct.calcsize("15s 15s H I I f H f f"))
+            logger.info(len(data))
+            (
+                msg_type_b,
+                state_b,
+                responder,
+                sequence,
+                measurements,
+                distance,
+                nlos,
+                rssi,
+                fpi,
+            ) = struct.unpack(
+                "15s 15s H I I f H f f", data
+            )  # Datatype 15 char[] (c string) and f->float and I->uint32_t and H->uint8_t
+            logger.info("Test")
+        except Exception as e:
+            logger.error(f"Execption: {e}")
         msg_type = msg_type_b.decode("utf-8")
         state = state_b.decode("utf-8")
-        logger.debug("From Handle {} Msg_Type: {}".format(sender, msg_type))
-        logger.debug("From Handle {} Sequence: {}".format(sender, sequence))
-        logger.debug(
-            "From Handle {} Measurements: {}".format(sender, measurements)
-        )
-        logger.debug("From Handle {} Distance: {}".format(sender, distance))
-        logger.debug("From Handle {} NLOS: {}".format(sender, nlos))
-        logger.debug("From Handle {} RSSI: {}".format(sender, rssi))
-        logger.debug("From Handle {} FPI: {}".format(sender, fpi))
+        # logger.info("From Handle {} Msg_Type: {}".format(sender, msg_type))
+        # logger.info("From Handle {} Sequence: {}".format(sender, sequence))
+        # logger.info(
+        #     "From Handle {} Measurements: {}".format(sender, measurements)
+        # )
+        # logger.debug("From Handle {} Distance: {}".format(sender, distance))
+        # logger.debug("From Handle {} NLOS: {}".format(sender, nlos))
+        # logger.debug("From Handle {} RSSI: {}".format(sender, rssi))
+        # logger.debug("From Handle {} FPI: {}".format(sender, fpi))
         await self._callback(
             responder, sequence, measurements, distance, nlos, rssi, fpi
         )
