@@ -46,6 +46,7 @@ class DisconnectBleDevice(Command):
 class StartDistanceMeasurement(Command):
     initiator: str
     responder: list[str]
+    measurement_type: str = "ds_3_twr"
     rx_ant_dly: int = 16385
     tx_ant_dly: int = 16385
 
@@ -62,6 +63,7 @@ class StartTestMeasurement(Command):
     responder: list[str]
     min_measurement: int
     max_measurement: int
+    measurement_type: str = "ds_3_twr"
     rx_ant_dly: int = 0
     tx_ant_dly: int = 0
 
@@ -71,6 +73,7 @@ class StartCalibrationMeasurement(Command):
     calibration_id: int
     devices: list[str]
     max_measurement: int
+    measurement_type: str = "ds_3_twr"
     rx_ant_dly: int = 0
     tx_ant_dly: int = 0
 
