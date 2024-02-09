@@ -161,7 +161,6 @@ class SITGateway:
     async def distance_notifcation(
         self, responder, sequence, measurement, distance, nlos, rssi, fpi
     ):
-        print(f"Test: {distance}")
         if self.test_id is not None:
             await self.bus.handle(
                 events.TestMeasurement(
@@ -232,6 +231,7 @@ class SITGateway:
             "responder": 1,
             "min_measurement": 0,
             "max_measurement": calibration_setup.max_measurement,
+            "measurement_type": calibration_setup.measurement_type,
             "rx_ant_dly": calibration_setup.rx_ant_dly,
             "tx_ant_dly": calibration_setup.tx_ant_dly,
         }
