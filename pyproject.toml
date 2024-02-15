@@ -15,7 +15,7 @@ profile = "black"
 
 #Pylint section
 [tool.pylint]
-logging-format-style = "new"
+
 [tool.pylint.master]
 
 
@@ -23,6 +23,9 @@ logging-format-style = "new"
 const-naming-style='UPPER_CASE'
 module-naming-style='camelCase'
 class-naming-style='PascalCase'
+
+[tool.pylint.'LOGGING']
+logging-format-style = "new"
 
 [tool.pylint.'MESSAGES CONTROL']
 disable = ['I1101', 'C0114', 'C0115', 'C0116', 'W0621']
