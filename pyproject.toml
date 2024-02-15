@@ -17,7 +17,7 @@ profile = "black"
 [tool.pylint]
 
 [tool.pylint.main]
-disable = ['I1101', 'C0114', 'C0115', 'C0116', 'W1203']
+disable = ['I1101', 'C0114', 'C0115', 'C0116', 'W1203', 'W0621']
 
 [tool.pylint.basic]
 const-naming-style='UPPER_CASE'
@@ -26,10 +26,6 @@ class-naming-style='PascalCase'
 
 [tool.pylint.logging]
 logging-format-style = "new"
-
-
-
-
 
 
 
