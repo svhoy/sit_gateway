@@ -17,7 +17,7 @@ profile = "black"
 [tool.pylint]
 
 [tool.pylint.main]
-disable = ['I1101', 'C0114', 'C0115', 'C0116']
+disable = ['I1101', 'C0114', 'C0115', 'C0116', 'W1203']
 
 [tool.pylint.basic]
 const-naming-style='UPPER_CASE'
