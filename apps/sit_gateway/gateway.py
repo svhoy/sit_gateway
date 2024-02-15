@@ -29,6 +29,7 @@ class SITGateway:
         self.test_id = None
         self.calibration_id: int = 0
         self._distance_notify_tasks = set()
+        self.measurement_type = "ss_twr"
 
     def set_dependencies(self, tg, bus):
         self.taskGroup = tg
@@ -167,6 +168,7 @@ class SITGateway:
                     test_id=self.test_id,
                     initiator=self.initiator_device,
                     responder=self.get_responder(responder),
+                    measurement_type=self.measurement_type,
                     sequence=sequence,
                     measurement=measurement,
                     distance=distance,
@@ -181,6 +183,7 @@ class SITGateway:
                     claibration_id=self.calibration_id,
                     initiator=self.initiator_device,
                     responder=self.get_responder(responder),
+                    measurement_type=self.measurement_type,
                     sequence=sequence,
                     measurement=measurement,
                     distance=distance,
@@ -199,6 +202,7 @@ class SITGateway:
                 events.DistanceMeasurement(
                     initiator=self.initiator_device,
                     responder=self.get_responder(responder),
+                    measurement_type=self.measurement_type,
                     sequence=sequence,
                     measurement=measurement,
                     distance=distance,
@@ -238,10 +242,9 @@ class SITGateway:
         await self.bus.handle(commands.StartSingleCalibrationMeasurement())
 
     async def start_calibration(self):
-        print("Test")
-        print(f"Cali Round: {self.cali_rounds}")
-        print(f"Cali Liste: {self.cali_device_list}")
-        print(f"Cali Finished Len: {len(self.cali_finished_list)}")
+        logger.info(f"Cali Round: {self.cali_rounds}")
+        logger.info(f"Cali Liste: {self.cali_device_list}")
+        logger.info(f"Cali Finished Len: {len(self.cali_finished_list)}")
         if self.cali_rounds > len(self.cali_finished_list):
             cali_devices = self.cali_device_list.pop(0)
             self.cali_setup["initiator_device"] = cali_devices[0]
@@ -293,6 +296,9 @@ class SITGateway:
             logger.error("Cound't write Int Command")
 
     # Utils Gateway Functions
+    async def set_measurement_type(self, measurement_type: str) -> None:
+        self.measurement_type = measurement_type      
+    
     def get_device_index(self, device_name: str) -> int | None:
         index = 0
         for device in self.ble_list:

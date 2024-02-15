@@ -49,6 +49,7 @@ class DistanceMeasurement(Event):
     initiator: str
     responder: str
     sequence: int
+    measurement_type: str
     measurement: int
     distance: float
     nlos: int
@@ -61,6 +62,7 @@ class TestMeasurement(Event):
     test_id: int
     initiator: str
     responder: str
+    measurement_type: str
     sequence: int
     measurement: int
     distance: float
@@ -74,6 +76,7 @@ class CalibrationMeasurement(Event):
     claibration_id: int
     initiator: str
     responder: str
+    measurement_type: str
     sequence: int
     measurement: int
     distance: float

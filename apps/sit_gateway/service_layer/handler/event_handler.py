@@ -36,6 +36,7 @@ async def send_distance_measurement(
         "data": {
             "initiator": event.initiator,
             "responder": event.responder,
+            "measurement_type": event.measurement_type,
             "sequence": event.sequence,
             "measurement": event.measurement,
             "distance": event.distance,
@@ -56,6 +57,7 @@ async def send_test_measurement(
             "test_id": event.test_id,
             "initiator": event.initiator,
             "responder": event.responder,
+            "measurement_type": event.measurement_type,
             "sequence": event.sequence,
             "measurement": event.measurement,
             "distance": event.distance,
@@ -76,6 +78,7 @@ async def send_calibration_measurement(
             "calibration_id": event.claibration_id,
             "initiator": event.initiator,
             "responder": event.responder,
+            "measurement_type": event.measurement_type,
             "sequence": event.sequence,
             "measurement": event.measurement,
             "distance": event.distance,

@@ -52,6 +52,7 @@ async def start_measurement(
         "responder": len(command.responder),
         "min_measurement": 0,
         "max_measurement": 0,
+        "measurement_type": command.measurement_type,
         "rx_ant_dly": command.rx_ant_dly,
         "tx_ant_dly": command.tx_ant_dly,
     }
@@ -63,6 +64,7 @@ async def start_measurement(
             "6ba1de6b-3ab6-4d77-9ea1-cb6422720004", setup, responder
         )
     await asyncio.sleep(3)
+    await gateway.set_measurement_type(command.measurement_type)
     await gateway.start_measurement(
         initiator_device=command.initiator,
         responder_devices=command.responder,
