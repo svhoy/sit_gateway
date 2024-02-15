@@ -24,7 +24,11 @@ module-naming-style='camelCase'
 class-naming-style='PascalCase'
 
 [tool.pylint.'MESSAGES CONTROL']
-disable = ['I1101', 'C0114', 'C0115', 'C0116']
+disable = ['I1101', 'C0114', 'C0115', 'C0116', 'W0621']
+
+
+[tool.flake8]
+ignore = ["F811"]
 
 [tool.poetry]
 name = "sit-gateway"
