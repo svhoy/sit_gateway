@@ -38,7 +38,7 @@ async def main():
         except KeyboardInterrupt:
             logger.info("User stopped program.")
         except Exception as e:
-            logger.error("An error occurred: %s", e)
+            logger.error(f"An error occurred: {e}")
         finally:
             logger.info("Disconnecting...")
             cancel_task("Notify Task")

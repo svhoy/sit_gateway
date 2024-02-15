@@ -15,6 +15,7 @@ profile = "black"
 
 #Pylint section
 [tool.pylint]
+logging-format-style = "new"
 [tool.pylint.master]
 
 
@@ -25,6 +26,8 @@ class-naming-style='PascalCase'
 
 [tool.pylint.'MESSAGES CONTROL']
 disable = ['I1101', 'C0114', 'C0115', 'C0116', 'W0621']
+
+
 
 
 [tool.flake8]
