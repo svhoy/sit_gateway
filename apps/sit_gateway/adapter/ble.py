@@ -11,7 +11,6 @@ from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 
 
-
 LOG_CONFIG_PATH = "settings/logging.conf"
 
 logging.config.fileConfig(LOG_CONFIG_PATH)
@@ -80,7 +79,7 @@ class Ble:
 
     async def on_distance_notification(self, sender: int, data: bytearray):
         logger.info(f"Daten in Notfiy Function: {data}")
-        
+
         try:
             logger.info(struct.calcsize("15s 15s H I I f H f f"))
             logger.info(len(data))

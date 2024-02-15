@@ -25,7 +25,7 @@ bus = bootstrap.bootstrap(uow.UnitOfWork(), ws, gateway)
 
 async def main():
     """
-    Main function of the application. 
+    Main function of the application.
     It creates a TaskGroup to run multiple asynchronous tasks concurrently.
     It sets the dependencies for the gateway and creates the main Websocket task.
     It also handles exceptions and performs cleanup when the application is stopped.

@@ -297,8 +297,8 @@ class SITGateway:
 
     # Utils Gateway Functions
     async def set_measurement_type(self, measurement_type: str) -> None:
-        self.measurement_type = measurement_type      
-    
+        self.measurement_type = measurement_type
+
     def get_device_index(self, device_name: str) -> int | None:
         index = 0
         for device in self.ble_list:
