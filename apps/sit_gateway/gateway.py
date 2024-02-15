@@ -30,6 +30,8 @@ class SITGateway:
         self.calibration_id: int = 0
         self._distance_notify_tasks = set()
         self.measurement_type = "ss_twr"
+        self.initiator_device: str
+        self.responder_devices: list[str]
 
     def set_dependencies(self, tg, bus):
         self.taskGroup = tg
@@ -86,12 +88,11 @@ class SITGateway:
 
     async def connect_ble(self, device_name) -> Ble | None:
         devices = await self.scan(20)
-        logger.info(devices)
         for device in devices:
             if device_name in device.name:
                 ble = Ble(self)
-                logger.info("{}: {}".format(device.name, device.address))
-                logger.info("UUIDs: {}".format(device.metadata["uuids"]))
+                logger.info(f"{device.name}: {device.address}")
+                logger.info(f"UUIDs: {device.metadata['uuids']}")
                 task_name = (
                     "Ble Task " + device_name
                 )  # BLE TASK with Device Name to identify the Task
@@ -121,8 +122,6 @@ class SITGateway:
             "6ba1de6b-3ab6-4d77-9ea1-cb6422720003", command, initiator_device
         )
 
-        # TODO Notify für alle Devices Erstellen und dann in ein Set Speichern
-        # beachte die Hinweiße hier: https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
         self.taskGroup.create_task(
             self.enable_notify(initiator_device),
             name="BLE Notify" + initiator_device,
