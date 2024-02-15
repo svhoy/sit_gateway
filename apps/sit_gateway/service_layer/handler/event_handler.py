@@ -91,9 +91,11 @@ async def send_calibration_measurement(
 
 
 async def redirect_event(
-    event: events.BleDeviceConnectFailed
-    | events.BleDeviceConnectError
-    | events.CalibrationMeasurementFinished,
+    event: (
+        events.BleDeviceConnectFailed
+        | events.BleDeviceConnectError
+        | events.CalibrationMeasurementFinished
+    ),
     ws: websocket.Websocket,
 ):
     message = event.json
