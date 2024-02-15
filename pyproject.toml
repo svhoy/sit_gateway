@@ -15,16 +15,22 @@ profile = "black"
 
 #Pylint section
 [tool.pylint]
-[tool.pylint.master]
 
+[tool.pylint.main]
+disable = ['I1101', 'C0114', 'C0115', 'C0116', 'W1203', 'W0621']
 
-[tool.pylint.'BASIC']
+[tool.pylint.basic]
 const-naming-style='UPPER_CASE'
 module-naming-style='camelCase'
 class-naming-style='PascalCase'
 
-[tool.pylint.'MESSAGES CONTROL']
-disable = ['I1101', 'C0114', 'C0115', 'C0116']
+[tool.pylint.logging]
+logging-format-style = "new"
+
+
+
+[tool.flake8]
+ignore = ["F811"]
 
 [tool.poetry]
 name = "sit-gateway"

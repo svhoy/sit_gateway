@@ -29,6 +29,9 @@ class SITGateway:
         self.test_id = None
         self.calibration_id: int = 0
         self._distance_notify_tasks = set()
+        self.measurement_type = "ss_twr"
+        self.initiator_device: str
+        self.responder_devices: list[str]
 
     def set_dependencies(self, tg, bus):
         self.taskGroup = tg
@@ -50,7 +53,7 @@ class SITGateway:
         if ble is not None:
             await asyncio.sleep(5.0)
             # TODO
-            if ble.isConnected():
+            if ble.is_connected():
                 self.ble_list.append(ble)
                 await self.bus.handle(
                     events.BleDeviceConnected(device_id=device_id)
@@ -85,12 +88,11 @@ class SITGateway:
 
     async def connect_ble(self, device_name) -> Ble | None:
         devices = await self.scan(20)
-        logger.info(devices)
         for device in devices:
             if device_name in device.name:
                 ble = Ble(self)
-                logger.info("{}: {}".format(device.name, device.address))
-                logger.info("UUIDs: {}".format(device.metadata["uuids"]))
+                logger.info(f"{device.name}: {device.address}")
+                logger.info(f"UUIDs: {device.metadata['uuids']}")
                 task_name = (
                     "Ble Task " + device_name
                 )  # BLE TASK with Device Name to identify the Task
@@ -120,8 +122,6 @@ class SITGateway:
             "6ba1de6b-3ab6-4d77-9ea1-cb6422720003", command, initiator_device
         )
 
-        # TODO Notify für alle Devices Erstellen und dann in ein Set Speichern
-        # beachte die Hinweiße hier: https://docs.python.org/3/library/asyncio-task.html#asyncio.create_task
         self.taskGroup.create_task(
             self.enable_notify(initiator_device),
             name="BLE Notify" + initiator_device,
@@ -150,7 +150,7 @@ class SITGateway:
         enable_notify = False
         device = self.get_device(initiator_device)
         while 1:
-            if device.isConnected() and not enable_notify:
+            if device.is_connected() and not enable_notify:
                 await device.getNotification(
                     "6ba1de6b-3ab6-4d77-9ea1-cb6422720001",
                     self.distance_notifcation,
@@ -161,13 +161,13 @@ class SITGateway:
     async def distance_notifcation(
         self, responder, sequence, measurement, distance, nlos, rssi, fpi
     ):
-        print(f"Test: {distance}")
         if self.test_id is not None:
             await self.bus.handle(
                 events.TestMeasurement(
                     test_id=self.test_id,
                     initiator=self.initiator_device,
                     responder=self.get_responder(responder),
+                    measurement_type=self.measurement_type,
                     sequence=sequence,
                     measurement=measurement,
                     distance=distance,
@@ -182,6 +182,7 @@ class SITGateway:
                     claibration_id=self.calibration_id,
                     initiator=self.initiator_device,
                     responder=self.get_responder(responder),
+                    measurement_type=self.measurement_type,
                     sequence=sequence,
                     measurement=measurement,
                     distance=distance,
@@ -200,6 +201,7 @@ class SITGateway:
                 events.DistanceMeasurement(
                     initiator=self.initiator_device,
                     responder=self.get_responder(responder),
+                    measurement_type=self.measurement_type,
                     sequence=sequence,
                     measurement=measurement,
                     distance=distance,
@@ -232,16 +234,16 @@ class SITGateway:
             "responder": 1,
             "min_measurement": 0,
             "max_measurement": calibration_setup.max_measurement,
+            "measurement_type": calibration_setup.measurement_type,
             "rx_ant_dly": calibration_setup.rx_ant_dly,
             "tx_ant_dly": calibration_setup.tx_ant_dly,
         }
         await self.bus.handle(commands.StartSingleCalibrationMeasurement())
 
     async def start_calibration(self):
-        print("Test")
-        print(f"Cali Round: {self.cali_rounds}")
-        print(f"Cali Liste: {self.cali_device_list}")
-        print(f"Cali Finished Len: {len(self.cali_finished_list)}")
+        logger.info(f"Cali Round: {self.cali_rounds}")
+        logger.info(f"Cali Liste: {self.cali_device_list}")
+        logger.info(f"Cali Finished Len: {len(self.cali_finished_list)}")
         if self.cali_rounds > len(self.cali_finished_list):
             cali_devices = self.cali_device_list.pop(0)
             self.cali_setup["initiator_device"] = cali_devices[0]
@@ -293,6 +295,9 @@ class SITGateway:
             logger.error("Cound't write Int Command")
 
     # Utils Gateway Functions
+    async def set_measurement_type(self, measurement_type: str) -> None:
+        self.measurement_type = measurement_type
+
     def get_device_index(self, device_name: str) -> int | None:
         index = 0
         for device in self.ble_list:

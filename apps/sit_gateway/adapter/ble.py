@@ -11,7 +11,6 @@ from bleak import BleakClient
 from bleak.backends.device import BLEDevice
 
 
-
 LOG_CONFIG_PATH = "settings/logging.conf"
 
 logging.config.fileConfig(LOG_CONFIG_PATH)
@@ -23,40 +22,41 @@ class Ble:
     def __init__(self, gateway) -> None:
         self._gateway = gateway
 
-        self._client: BleakClient
-        self._isConnected: bool = False
-        self._connected_device: BLEDevice
+        self._client: BleakClient | None
+        self._is_connected: bool = False
+        self._connected_device: BLEDevice | None
+        self._callback: Callable
 
     def _set_client(self, device: BLEDevice):
         self._client = BleakClient(device.address, self._on_disconnect)
         self._connected_device = device
 
     async def connect_device(self, device: BLEDevice):
-        if self._isConnected:
+        if self._is_connected:
             return
         self._set_client(device=device)
-        logger.info("Im Connector {}: {}".format(device.name, device.address))
+        logger.info(f"Im Connector {device.name}: {device.address}")
         try:
             await self._client.connect()
-            self._isConnected = self._client.is_connected
-            if self._isConnected:
+            self._is_connected = self._client.is_connected
+            if self._is_connected:
                 logger.info(f"Connected to {device.name}")
                 for service in self._client.services:
-                    logger.info("Services: {}".format(service))
+                    logger.info(f"Services: {service}")
                     for char in service.characteristics:
-                        logger.info("Char: {}".format(char))
+                        logger.info(f"Char: {char}")
                 while True:
-                    if not self._isConnected:
+                    if not self._is_connected:
                         break
                     await asyncio.sleep(5.0)
         except Exception as e:
-            logger.error("Exeption: {}".format(e))
+            logger.error(f"Exeption: {e}")
             self._connected_device = None
             self._client = None
 
     async def disconnect_device(self):
         await self._client.disconnect()
-        self._isConnected = False
+        self._is_connected = False
 
     async def cleanup(self):
         if self._client is not None:
@@ -65,22 +65,21 @@ class Ble:
     async def _on_disconnect(self, client: BleakClient):
         logger.info(f"Disconnected from {self._connected_device.name}!")
         self._connected_device = None
-        self._isConnected = False
+        self._is_connected = False
 
     async def write_command(self, uuid: str, byte_data):
         try:
             await self._client.write_gatt_char(uuid, byte_data)
             logger.info(f"Send {byte_data} to Periphal")
         except Exception as e:
-            logger.error("Exeption: {}".format(e))
+            logger.error(f"Exeption: {e}")
 
-    async def getNotification(self, uuid: str, callback: Callable) -> None:
+    async def get_notification(self, uuid: str, callback: Callable) -> None:
         self._callback = callback
         await self._client.start_notify(uuid, self.on_distance_notification)
 
     async def on_distance_notification(self, sender: int, data: bytearray):
         logger.info(f"Daten in Notfiy Function: {data}")
-        
         try:
             logger.info(struct.calcsize("15s 15s H I I f H f f"))
             logger.info(len(data))
@@ -100,11 +99,11 @@ class Ble:
             logger.info("Test")
         except Exception as e:
             logger.error(f"Execption: {e}")
-        msg_type = msg_type_b.decode("utf-8")
-        state = state_b.decode("utf-8")
-        # logger.info("From Handle {} Msg_Type: {}".format(sender, msg_type))
-        # logger.info("From Handle {} Sequence: {}".format(sender, sequence))
-        # logger.info(
+        # msg_type = msg_type_b.decode("utf-8")
+        # state = state_b.decode("utf-8")
+        # logger.debug("From Handle {} Msg_Type: {}".format(sender, msg_type))
+        # logger.debug("From Handle {} Sequence: {}".format(sender, sequence))
+        # logger.debug(
         #     "From Handle {} Measurements: {}".format(sender, measurements)
         # )
         # logger.debug("From Handle {} Distance: {}".format(sender, distance))
@@ -115,9 +114,10 @@ class Ble:
             responder, sequence, measurements, distance, nlos, rssi, fpi
         )
 
-    def isConnected(self):
-        return self._isConnected
+    def is_connected(self):
+        return self._is_connected
 
-    def getDeviceName(self) -> str:
+    def get_device_name(self) -> str:
         if self._connected_device is not None:
             return self._connected_device.name
+        return ""
