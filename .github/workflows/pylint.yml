@@ -39,4 +39,4 @@ jobs:
       - uses: actions/checkout@v2
       - uses: psf/black@stable
         with:
-          options: "--check --verboser"
+          options: "--check --verbose"
