@@ -51,7 +51,7 @@ class SITGateway:
         if ble is not None:
             await asyncio.sleep(5.0)
             # TODO
-            if ble.isConnected():
+            if ble.is_connected():
                 self.ble_list.append(ble)
                 await self.bus.handle(
                     events.BleDeviceConnected(device_id=device_id)
@@ -151,7 +151,7 @@ class SITGateway:
         enable_notify = False
         device = self.get_device(initiator_device)
         while 1:
-            if device.isConnected() and not enable_notify:
+            if device.is_connected() and not enable_notify:
                 await device.getNotification(
                     "6ba1de6b-3ab6-4d77-9ea1-cb6422720001",
                     self.distance_notifcation,
