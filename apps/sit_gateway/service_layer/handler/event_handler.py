@@ -1,10 +1,17 @@
 # Standard Library
 import json
+import logging
+import logging.config
 
 # Library
 from apps.sit_gateway.domain import events
 from apps.sit_gateway.entrypoint import websocket
 
+LOG_CONFIG_PATH = "settings/logging.conf"
+
+logging.config.fileConfig(LOG_CONFIG_PATH)
+# create logger
+logger = logging.getLogger("event_handler")
 
 async def register_ble_connection(
     event: events.BleDeviceConnected,
@@ -40,11 +47,16 @@ async def send_distance_measurement(
             "sequence": event.sequence,
             "measurement": event.measurement,
             "distance": event.distance,
-            "nlos": event.nlos,
-            "rssi": event.rssi,
-            "fpi": event.fpi,
+            "time_round_1": event.time_round_1,
+            "time_round_2": event.time_round_2,
+            "time_reply_1": event.time_reply_1,
+            "time_reply_2": event.time_reply_2,
+            "nlos_final": event.nlos,
+            "rssi_final": event.rssi,
+            "fpi_final": event.fpi,
         },
     }
+    logger.debug(f"Sending distance measurement: {message}")
     await ws.send(json.dumps(message))
 
 
@@ -61,9 +73,13 @@ async def send_test_measurement(
             "sequence": event.sequence,
             "measurement": event.measurement,
             "distance": event.distance,
-            "nlos": event.nlos,
-            "rssi": event.rssi,
-            "fpi": event.fpi,
+            "time_round_1": event.time_round_1,
+            "time_round_2": event.time_round_2,
+            "time_reply_1": event.time_reply_1,
+            "time_reply_2": event.time_reply_2,
+            "nlos_final": event.nlos,
+            "rssi_final": event.rssi,
+            "fpi_final": event.fpi,
         },
     }
     await ws.send(json.dumps(message))
@@ -82,9 +98,13 @@ async def send_calibration_measurement(
             "sequence": event.sequence,
             "measurement": event.measurement,
             "distance": event.distance,
-            "nlos": event.nlos,
-            "rssi": event.rssi,
-            "fpi": event.fpi,
+            "time_round_1": event.time_round_1,
+            "time_round_2": event.time_round_2,
+            "time_reply_1": event.time_reply_1,
+            "time_reply_2": event.time_reply_2,
+            "nlos_final": event.nlos,
+            "rssi_final": event.rssi,
+            "fpi_final": event.fpi,
         },
     }
     await ws.send(json.dumps(message))

@@ -52,6 +52,10 @@ class DistanceMeasurement(Event):
     measurement_type: str
     measurement: int
     distance: float
+    time_round_1: float
+    time_round_2: float
+    time_reply_1: float
+    time_reply_2: float
     nlos: int
     rssi: float
     fpi: float
@@ -66,6 +70,10 @@ class TestMeasurement(Event):
     sequence: int
     measurement: int
     distance: float
+    time_round_1: float
+    time_round_2: float
+    time_reply_1: float
+    time_reply_2: float
     nlos: int
     rssi: float
     fpi: float
@@ -80,6 +88,10 @@ class CalibrationMeasurement(Event):
     sequence: int
     measurement: int
     distance: float
+    time_round_1: float
+    time_round_2: float
+    time_reply_1: float
+    time_reply_2: float
     nlos: int
     rssi: float
     fpi: float

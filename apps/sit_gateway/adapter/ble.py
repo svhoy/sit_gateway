@@ -9,6 +9,10 @@ from typing import Callable
 # Third Party
 from bleak import BleakClient
 from bleak.backends.device import BLEDevice
+from bleak.backends.characteristic import BleakGATTCharacteristic
+from apps.sit_gateway.adapter.exceptions import BleDataException
+
+from apps.sit_gateway.domain.data import MsgData
 
 
 LOG_CONFIG_PATH = "settings/logging.conf"
@@ -78,27 +82,53 @@ class Ble:
         self._callback = callback
         await self._client.start_notify(uuid, self.on_distance_notification)
 
-    async def on_distance_notification(self, sender: int, data: bytearray):
-        logger.info(f"Daten in Notfiy Function: {data}")
+    async def on_distance_notification(self, sender: BleakGATTCharacteristic, data: bytearray):
+        # Datatype 15 char[] (c string) and f->float and I->uint32_t and H->uint8_t
+        msg_structure = "15s 15s H I I f f f f f"
+        msg_structure_all = "15s 15s H I I f f f f f f f I H"
+        logger.debug(f"MSG Structure: {struct.calcsize(msg_structure)}")
+        logger.debug(f"All MSG Structure: {struct.calcsize(msg_structure_all)}")
+        logger.debug(f"Data Lenght: {len(data)}")
         try:
-            logger.info(struct.calcsize("15s 15s H I I f H f f"))
-            logger.info(len(data))
-            (
-                msg_type_b,
-                state_b,
-                responder,
-                sequence,
-                measurements,
-                distance,
-                nlos,
-                rssi,
-                fpi,
-            ) = struct.unpack(
-                "15s 15s H I I f H f f", data
-            )  # Datatype 15 char[] (c string) and f->float and I->uint32_t and H->uint8_t
-            logger.info("Test")
-        except Exception as e:
-            logger.error(f"Execption: {e}")
+            if (struct.calcsize(msg_structure)) == len(data):
+                msg_data_buf = struct.unpack(
+                    msg_structure, data
+                )
+                msg_data = MsgData(
+                    msg_type=msg_data_buf[0].decode("utf-8"),
+                    state=msg_data_buf[1].decode("utf-8"),
+                    responder=msg_data_buf[2],
+                    sequence=msg_data_buf[3],
+                    measurement=msg_data_buf[4],
+                    distance=msg_data_buf[5],
+                    time_round_1=msg_data_buf[6],
+                    time_round_2=msg_data_buf[7],
+                    time_reply_1=msg_data_buf[8],
+                    time_reply_2=msg_data_buf[9],
+                )
+            elif (struct.calcsize(msg_structure_all)) == len(data):
+                msg_data_buf = struct.unpack(
+                    msg_structure_all, data
+                )
+                msg_data = MsgData(
+                    msg_type=msg_data_buf[0].decode("utf-8"),
+                    state=msg_data_buf[1].decode("utf-8"),
+                    responder=msg_data_buf[2],
+                    sequence=msg_data_buf[3],
+                    measurement=msg_data_buf[4],
+                    distance=msg_data_buf[5],
+                    time_round_1=msg_data_buf[6],
+                    time_round_2=msg_data_buf[7],
+                    time_reply_1=msg_data_buf[8],
+                    time_reply_2=msg_data_buf[9],
+                    nlos=msg_data_buf[13],
+                    rssi=msg_data_buf[10],
+                    fpi=msg_data_buf[11],
+                )
+            else: 
+                raise BleDataException(f"Data length not correct: {len(data)}")
+        except struct.error as e:
+            logger.error(f"Execption - {e}")
         # msg_type = msg_type_b.decode("utf-8")
         # state = state_b.decode("utf-8")
         # logger.debug("From Handle {} Msg_Type: {}".format(sender, msg_type))
@@ -111,7 +141,7 @@ class Ble:
         # logger.debug("From Handle {} RSSI: {}".format(sender, rssi))
         # logger.debug("From Handle {} FPI: {}".format(sender, fpi))
         await self._callback(
-            responder, sequence, measurements, distance, nlos, rssi, fpi
+            msg_data
         )
 
     def is_connected(self):
@@ -120,4 +150,5 @@ class Ble:
     def get_device_name(self) -> str:
         if self._connected_device is not None:
             return self._connected_device.name
+        logger.info("No Device connected")
         return ""

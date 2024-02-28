@@ -40,17 +40,17 @@ class Websocket:
                 async for text_data in self._websocket:
                     await self.recive(text_data, bus)
             except websockets.ConnectionClosedError as e:
-                logger.error(e)
-                logger.error("Connection is closed, try reconnect")
+                logger.warning(e)
+                logger.warning("Connection is closed, try reconnect")
                 continue
             except websockets.ConnectionClosed as e:
-                logger.error(e)
-                logger.error("Connection is closed, try reconnect")
+                logger.warning(e)
+                logger.warning("Connection is closed, try reconnect")
                 continue
 
     async def recive(self, data_msg, bus):
         data = json.loads(data_msg)
-        logger.info(data)
+        logger.debug(f"Data msg: {data}")
         try:
             message = self.create_dataclass_instance(
                 data["type"], data["data"]
@@ -62,7 +62,7 @@ class Websocket:
             ):
                 await bus.handle(message)
         except ValueError as e:
-            logger.error(f"Can not create Dataclass: {e}")
+            logger.debug(f"Can not create Dataclass: {e}")
 
     async def send(self, data_msg):
         await self._websocket.send(data_msg)

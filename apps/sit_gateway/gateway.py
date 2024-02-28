@@ -6,10 +6,12 @@ import logging.config
 
 # Third Party
 from bleak import BleakScanner
+from bleak.exc import BleakError
 from bleak.backends.device import BLEDevice
 
 # Library
 from apps.sit_gateway.domain import commands, events
+from apps.sit_gateway.domain.data import MsgData
 from apps.sit_gateway.service_layer.utils import cancel_task
 
 from .adapter.ble import Ble
@@ -151,7 +153,7 @@ class SITGateway:
         device = self.get_device(initiator_device)
         while 1:
             if device.is_connected() and not enable_notify:
-                await device.getNotification(
+                await device.get_notification(
                     "6ba1de6b-3ab6-4d77-9ea1-cb6422720001",
                     self.distance_notifcation,
                 )
@@ -159,21 +161,25 @@ class SITGateway:
             await asyncio.sleep(2)
 
     async def distance_notifcation(
-        self, responder, sequence, measurement, distance, nlos, rssi, fpi
+        self, data: MsgData
     ):
         if self.test_id is not None:
             await self.bus.handle(
                 events.TestMeasurement(
                     test_id=self.test_id,
                     initiator=self.initiator_device,
-                    responder=self.get_responder(responder),
+                    responder=self.get_responder(data.responder),
                     measurement_type=self.measurement_type,
-                    sequence=sequence,
-                    measurement=measurement,
-                    distance=distance,
-                    nlos=nlos,
-                    rssi=rssi,
-                    fpi=fpi,
+                    sequence=data.sequence,
+                    measurement=data.measurement,
+                    distance=data.distance,
+                    time_round_1=data.time_round_1,
+                    time_round_2=data.time_round_2,
+                    time_reply_1=data.time_reply_1,
+                    time_reply_2=data.time_reply_2,
+                    nlos=data.nlos,
+                    rssi=data.rssi,
+                    fpi=data.fpi,
                 )
             )
         elif self.calibration_id != 0:
@@ -181,33 +187,42 @@ class SITGateway:
                 events.CalibrationMeasurement(
                     claibration_id=self.calibration_id,
                     initiator=self.initiator_device,
-                    responder=self.get_responder(responder),
+                    responder=self.get_responder(data.responder),
                     measurement_type=self.measurement_type,
-                    sequence=sequence,
-                    measurement=measurement,
-                    distance=distance,
-                    nlos=nlos,
-                    rssi=rssi,
-                    fpi=fpi,
+                    sequence=data.sequence,
+                    measurement=data.measurement,
+                    distance=data.distance,
+                    time_round_1=data.time_round_1,
+                    time_round_2=data.time_round_2,
+                    time_reply_1=data.time_reply_1,
+                    time_reply_2=data.time_reply_2,
+                    nlos=data.nlos,
+                    rssi=data.rssi,
+                    fpi=data.fpi,
                 )
             )
-            if self.cali_setup["max_measurement"] == measurement:
+            if self.cali_setup["max_measurement"] == data.measurement:
                 await self.stop_measurement()
                 await self.bus.handle(
                     commands.StartSingleCalibrationMeasurement()
                 )
         else:
+            logger.debug(f"Data: {data}")
             await self.bus.handle(
                 events.DistanceMeasurement(
                     initiator=self.initiator_device,
-                    responder=self.get_responder(responder),
+                    responder=self.get_responder(data.responder),
                     measurement_type=self.measurement_type,
-                    sequence=sequence,
-                    measurement=measurement,
-                    distance=distance,
-                    nlos=nlos,
-                    rssi=rssi,
-                    fpi=fpi,
+                    sequence=data.sequence,
+                    measurement=data.measurement,
+                    distance=data.distance,
+                    time_round_1=data.time_round_1,
+                    time_round_2=data.time_round_2,
+                    time_reply_1=data.time_reply_1,
+                    time_reply_2=data.time_reply_2,
+                    nlos=data.nlos,
+                    rssi=data.rssi,
+                    fpi=data.fpi,
                 )
             )
 
@@ -280,8 +295,8 @@ class SITGateway:
             device = self.get_device(device_name)
             json_msg = json.dumps(command).encode("utf-8")
             await device.write_command(uuid, json_msg)
-        except Exception:
-            logger.error("Counldn't Write Json Command")
+        except BleakError as e:
+            logger.error(f"Can't write JSON Command: {e}")
 
     async def ble_send_int(
         self, uuid: str, intger: int, device_name: str
@@ -291,8 +306,8 @@ class SITGateway:
             await device.write_command(
                 uuid, intger.to_bytes(1, byteorder="big")
             )
-        except Exception:
-            logger.error("Cound't write Int Command")
+        except BleakError as e:
+            logger.error(f"Can't write Int Command: {e}")
 
     # Utils Gateway Functions
     async def set_measurement_type(self, measurement_type: str) -> None:
@@ -301,7 +316,7 @@ class SITGateway:
     def get_device_index(self, device_name: str) -> int | None:
         index = 0
         for device in self.ble_list:
-            if device_name in device.getDeviceName():
+            if device_name in device.get_device_name():
                 return index
             else:
                 index += 1
@@ -309,7 +324,7 @@ class SITGateway:
 
     def get_device(self, device_name: str) -> Ble | None:
         for device in self.ble_list:
-            if device_name in device.getDeviceName():
+            if device_name in device.get_device_name():
                 return device
         return None
 
@@ -318,4 +333,6 @@ class SITGateway:
         # from responders on ble devices starts with 100
         # so to get index in device list will be:
         index = responder_index % 100
+        logger.debug(f"Index: {index}")
+        logger.debug(f"Responder Index: {responder_index}")
         return self.responder_devices[index]
