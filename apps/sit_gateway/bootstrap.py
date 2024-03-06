@@ -1,8 +1,8 @@
 # Standard Library
 import inspect
 
-from ..sit_gateway.service_layer import messagebus, uow
-from ..sit_gateway.service_layer.handler import command_handler, event_handler
+from apps.sit_gateway.service_layer import messagebus, uow
+from apps.sit_gateway.service_layer.handler import command_handler, event_handler
 
 
 def bootstrap(uow: uow.UnitOfWork, ws, gateway):

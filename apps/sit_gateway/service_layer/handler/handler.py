@@ -14,7 +14,7 @@ class AbstractHandler(abc.ABC):
             "responder_device": [],
         }
 
-    async def msg_handler(self, data):
+    async def msg_handler(self, data, setup):
         raise NotImplementedError
 
     async def send_setup(self):
@@ -37,13 +37,11 @@ class AbstractHandler(abc.ABC):
                 device,
             )
 
-    async def start_measurement(self):
+    async def start_measurement(self, test_id: int | None):
         raise NotImplementedError
 
     async def stop_measurement(self):
         raise NotImplementedError
 
-    async def distance_notify(self, id, sequence, distance, nlos, rssi, fpi):
-        await self.gateway.socket.send_distance_msg(
-            self.test_id, sequence, distance, nlos, rssi, fpi
-        )
+    async def distance_notify(self):
+        raise NotImplementedError

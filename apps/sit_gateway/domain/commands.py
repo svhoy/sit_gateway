@@ -4,12 +4,12 @@ from json import dumps
 
 
 @dataclass
-class Command:
+class Command: #pylint: disable=R0801
     @property
     def __dict__(self):
-        dict = {}
-        dict["type"] = self.__class__.__name__
-        dict["data"] = asdict(self)
+        buf_dict = {}
+        buf_dict["type"] = self.__class__.__name__
+        buf_dict["data"] = asdict(self)
         return dict
 
     @property

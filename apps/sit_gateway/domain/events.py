@@ -1,15 +1,16 @@
+#pylint: disable=R0801
 # Standard Library
 from dataclasses import asdict, dataclass
 from json import dumps
 
 
 @dataclass
-class Event:
+class Event: #pylint: disable=R0801
     @property
     def __dict__(self):
-        dict = {}
-        dict["type"] = self.__class__.__name__
-        dict["data"] = asdict(self)
+        buf_dict = {}
+        buf_dict["type"] = self.__class__.__name__
+        buf_dict["data"] = asdict(self)
         return dict
 
     @property
@@ -25,13 +26,13 @@ class BleDeviceConnected(Event):
 @dataclass
 class BleDeviceConnectFailed(Event):
     device_id: str
-    reason: str = None
+    reason: str = ""
 
 
 @dataclass
 class BleDeviceConnectError(Event):
     device_id: str
-    reason: str = None
+    reason: str = ""
 
 
 @dataclass
@@ -68,7 +69,7 @@ class TestMeasurement(Event):
     responder: str
     measurement_type: str
     sequence: int
-    measurement: int
+    measurement: int #pylint: disable=R0801
     distance: float
     time_round_1: float
     time_round_2: float
@@ -86,7 +87,7 @@ class CalibrationMeasurement(Event):
     responder: str
     measurement_type: str
     sequence: int
-    measurement: int
+    measurement: int #pylint: disable=R0801
     distance: float
     time_round_1: float
     time_round_2: float

@@ -37,7 +37,7 @@ async def main():
             await task
         except KeyboardInterrupt:
             logger.info("User stopped program.")
-        except Exception as e:
+        except Exception as e: #pylint: disable=broad-exception-caught
             logger.error(f"An error occurred: {e}")
         finally:
             logger.info("Disconnecting...")

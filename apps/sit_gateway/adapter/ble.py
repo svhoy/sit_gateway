@@ -53,7 +53,7 @@ class Ble:
                     if not self._is_connected:
                         break
                     await asyncio.sleep(5.0)
-        except Exception as e:
+        except Exception as e: #pylint: disable=broad-exception-caught
             logger.error(f"Exeption: {e}")
             self._connected_device = None
             self._client = None
@@ -66,7 +66,7 @@ class Ble:
         if self._client is not None:
             await self.disconnect_device()
 
-    async def _on_disconnect(self, client: BleakClient):
+    async def _on_disconnect(self, client: BleakClient): #pylint: disable=unused-argument
         logger.info(f"Disconnected from {self._connected_device.name}!")
         self._connected_device = None
         self._is_connected = False
@@ -75,14 +75,18 @@ class Ble:
         try:
             await self._client.write_gatt_char(uuid, byte_data)
             logger.info(f"Send {byte_data} to Periphal")
-        except Exception as e:
+        except Exception as e: #pylint: disable=broad-exception-caught
             logger.error(f"Exeption: {e}")
 
     async def get_notification(self, uuid: str, callback: Callable) -> None:
         self._callback = callback
         await self._client.start_notify(uuid, self.on_distance_notification)
 
-    async def on_distance_notification(self, sender: BleakGATTCharacteristic, data: bytearray):
+    async def on_distance_notification(
+            self,
+            sender: BleakGATTCharacteristic,
+            data: bytearray,
+        ): #pylint: disable=unused-argument
         # Datatype 15 char[] (c string) and f->float and I->uint32_t and H->uint8_t
         msg_structure = "15s 15s H I I f f f f f"
         msg_structure_all = "15s 15s H I I f f f f f f f I H"
@@ -125,7 +129,7 @@ class Ble:
                     rssi=msg_data_buf[10],
                     fpi=msg_data_buf[11],
                 )
-            else: 
+            else:
                 raise BleDataException(f"Data length not correct: {len(data)}")
         except struct.error as e:
             logger.error(f"Execption - {e}")

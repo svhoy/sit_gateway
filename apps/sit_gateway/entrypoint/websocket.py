@@ -20,6 +20,9 @@ logger = logging.getLogger("pi_socket")
 
 
 class Websocket:
+    _websocket: websockets.client.WebSocketClientProtocol
+    _uri: str
+    dataclasses: dict
     def __init__(
         self,
         host: str = "ws://192.168.0.101:8000/",
@@ -30,6 +33,7 @@ class Websocket:
         # self._auth.login()
         self._uri = host + path
         self.dataclasses = self.find_dataclasses_in_directory()
+
 
     async def connect(self, bus):
         async for _websocket in websockets.client.connect(self._uri):
@@ -56,9 +60,10 @@ class Websocket:
                 data["type"], data["data"]
             )
             if not (
-                isinstance(message, events.BleDeviceConnected)
-                or isinstance(message, events.BleDeviceConnectFailed)
-                or isinstance(message, events.BleDeviceConnectError)
+                isinstance(message, (events.BleDeviceConnected,
+                                     events.BleDeviceConnectFailed,
+                                     events.BleDeviceConnectError,
+                                    ))
             ):
                 await bus.handle(message)
         except ValueError as e:
@@ -72,8 +77,8 @@ class Websocket:
         if data_class:
             instance = data_class(**data)
             return instance
-        else:
-            raise ValueError("Invalid event type")
+
+        raise ValueError("Invalid event type")
 
     def find_dataclasses_in_directory(self):
         dataclasses = {}
@@ -86,7 +91,11 @@ class Websocket:
             return dataclasses  # Module not found, return empty dict
         print(package)
 
-        for importer, modname, ispkg in pkgutil.walk_packages(
+        for (
+                importer, #pylint: disable=unused-variable
+                modname,
+                ispkg, #pylint: disable=unused-variable
+            ) in pkgutil.walk_packages(
             path=package.__path__, prefix=package.__name__ + "."
         ):
             module = importlib.import_module(modname)
@@ -99,26 +108,3 @@ class Websocket:
                     dataclasses[name] = obj
 
         return dataclasses
-
-    # Different Messanges send functions
-
-    async def send_distance_msg(
-        self, test_id, sequence, distance, nlos, rssi, fpi
-    ):
-        await self.send(
-            json.dumps(
-                {
-                    "type": "distance_msg",
-                    "data": {
-                        "state": "scanning",
-                        "distance": distance,
-                        "test_id": test_id,
-                        "sequence": sequence,
-                        "nlos": nlos,
-                        "rssi": rssi,
-                        "fpi": fpi,
-                    },
-                    "setup": None,
-                }
-            )
-        )

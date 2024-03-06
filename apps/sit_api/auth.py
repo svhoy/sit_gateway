@@ -24,7 +24,7 @@ class Authenticator:
     def login(self) -> None:
         json = {"username": self._user, "password": self._password}
         response = requests.request(
-            method="POST", url=URL + "token/", headers=HEADERS, json=json
+            method="POST", url=URL + "token/", headers=HEADERS, json=json, timeout=10,
         )
         if response.status_code == 200:
             print(response.json())
@@ -33,11 +33,11 @@ class Authenticator:
         else:
             print(response.status_code)
 
-    def refreshToken(self) -> None:
+    def refresh_token(self) -> None:
         url = URL + "token/refresh/"
         json = {"refresh": self._refresh}
         response = requests.request(
-            method="POST", url=url, headers=HEADERS, json=json
+            method="POST", url=url, headers=HEADERS, json=json, timeout=10,
         )
 
         if response.status_code == 200:
@@ -47,10 +47,10 @@ class Authenticator:
         else:
             print(response.status_code)
 
-    def _originalRequest(self, url: str, config: dict) -> Tuple:
+    def _original_request(self, url: str, config: dict) -> Tuple:
         url = URL + url
         response = requests.request(
-            method=config["method"], url=url, headers=config["headers"]
+            method=config["method"], url=url, headers=config["headers"], timeout=10,
         )
         data = response.json()
         return response, data
@@ -61,14 +61,14 @@ class Authenticator:
         d = datetime.datetime.now()
         unixtime = time.mktime(d.timetuple())
         if (unixtime - decode["exp"]) > 1:
-            self.refreshToken()
+            self.refresh_token()
         config["method"] = "GET"
         config["headers"] = {
             "Authorization": "Bearer " + self._token,
             "Content-Type": "application/json",
         }
 
-        respone, data = self._originalRequest(url=url, config=config)
+        respone, data = self._original_request(url=url, config=config)
 
         return respone, data
 

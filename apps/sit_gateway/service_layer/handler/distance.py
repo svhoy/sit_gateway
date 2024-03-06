@@ -7,16 +7,12 @@ from .handler import AbstractHandler
 class DistanceHandler(AbstractHandler):
     async def msg_handler(self, data, setup):
         match data:
-            case {
-                "state": "start",
-                "test_id": test_id,
-                **rest,
-            }:
+            case {"state": "start", "test_id": test_id, **rest}: #pylint: disable=unused-variable
                 self.setup_dict = setup
                 await self.send_setup()
                 await asyncio.sleep(5.0)
                 await self.start_measurement(test_id)
-            case {"state": "stop", **rest}:
+            case {"state": "stop", **rest}: #pylint: disable=unused-variable
                 await self.stop_measurement()
                 await asyncio.sleep(5.0)
                 await self.send_setup()

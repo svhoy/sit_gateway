@@ -1,3 +1,4 @@
+#pylint: disable=unused-argument
 # Standard Library
 import asyncio
 import json

@@ -34,9 +34,15 @@ class SITGateway:
         self.measurement_type = "ss_twr"
         self.initiator_device: str
         self.responder_devices: list[str]
+        self.cali_device_list = []
+        self.cali_finished_list = []
+        self.cali_setup = {}
+        self.cali_rounds = 0
+        self.bus = None
+        self.task_group = None
 
     def set_dependencies(self, tg, bus):
-        self.taskGroup = tg
+        self.task_group = tg
         self.bus = bus
 
     async def cleanup(self):
@@ -54,7 +60,6 @@ class SITGateway:
         await asyncio.sleep(5.0)
         if ble is not None:
             await asyncio.sleep(5.0)
-            # TODO
             if ble.is_connected():
                 self.ble_list.append(ble)
                 await self.bus.handle(
@@ -98,7 +103,7 @@ class SITGateway:
                 task_name = (
                     "Ble Task " + device_name
                 )  # BLE TASK with Device Name to identify the Task
-                self.taskGroup.create_task(
+                self.task_group.create_task(
                     ble.connect_device(device),
                     name=task_name,
                 )
@@ -124,12 +129,12 @@ class SITGateway:
             "6ba1de6b-3ab6-4d77-9ea1-cb6422720003", command, initiator_device
         )
 
-        self.taskGroup.create_task(
+        self.task_group.create_task(
             self.enable_notify(initiator_device),
             name="BLE Notify" + initiator_device,
         )
         for responder in responder_devices:
-            self.taskGroup.create_task(
+            self.task_group.create_task(
                 self.enable_notify(responder), name="BLE Notify" + responder
             )
 
@@ -318,8 +323,7 @@ class SITGateway:
         for device in self.ble_list:
             if device_name in device.get_device_name():
                 return index
-            else:
-                index += 1
+            index += 1
         return None
 
     def get_device(self, device_name: str) -> Ble | None:

@@ -1,4 +1,4 @@
-from ...sit_gateway.domain import commands, events
+from apps.sit_gateway.domain import commands, events
 
 
 class MessageBus:
@@ -6,6 +6,7 @@ class MessageBus:
         self.uow = uow
         self.event_handlers = event_handlers
         self.command_handlers = command_handlers
+        self.queue = []
 
     async def handle(self, message):
         self.queue = [message]
@@ -17,7 +18,7 @@ class MessageBus:
                 print(message)
                 await self.handle_command(message)
             else:
-                raise Exception(f"{message} was not an Event or Command")
+                raise Exception(f"{message} was not an Event or Command") #pylint: disable=broad-exception-raised
 
     async def handle_event(self, event):
         handlers = self.event_handlers[type(event)]
