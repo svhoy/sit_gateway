@@ -10,7 +10,7 @@ class Command: #pylint: disable=R0801
         buf_dict = {}
         buf_dict["type"] = self.__class__.__name__
         buf_dict["data"] = asdict(self)
-        return dict
+        return buf_dict
 
     @property
     def json(self):

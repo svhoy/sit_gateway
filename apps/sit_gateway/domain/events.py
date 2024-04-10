@@ -11,7 +11,7 @@ class Event: #pylint: disable=R0801
         buf_dict = {}
         buf_dict["type"] = self.__class__.__name__
         buf_dict["data"] = asdict(self)
-        return dict
+        return buf_dict
 
     @property
     def json(self):
@@ -82,7 +82,7 @@ class TestMeasurement(Event):
 
 @dataclass
 class CalibrationMeasurement(Event):
-    claibration_id: int
+    calibration_id: int
     initiator: str
     responder: str
     measurement_type: str
