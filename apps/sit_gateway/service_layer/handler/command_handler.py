@@ -1,6 +1,7 @@
 #pylint: disable=unused-argument
 # Standard Library
 import asyncio
+from calendar import c
 import json
 
 # Library
@@ -8,14 +9,25 @@ from apps.sit_gateway import gateway
 from apps.sit_gateway.domain import commands
 from apps.sit_gateway.entrypoint import websocket
 
+import logging
+import logging.config
+
+LOG_CONFIG_PATH = "settings/logging.conf"
+logging.config.fileConfig(LOG_CONFIG_PATH)
+logger = logging.getLogger("command_handler")
 
 # Send a register msg to webserver for connection when connection is acepted
 async def register_ws_client(
     command: commands.RegisterWsClient,
     ws: websocket.Websocket,
 ):
-    message = command.json
-    await ws.send(message)
+    message = {
+        "type": "RegisterWsClient",
+        "data": {
+            "client_id": command.client_id,
+        },
+    }
+    await ws.send(json.dumps(message))
 
 
 async def ping_ws_connection(
@@ -92,6 +104,7 @@ async def start_test_measurement(
         "rx_ant_dly": command.rx_ant_dly,
         "tx_ant_dly": command.tx_ant_dly,
     }
+    await gateway.set_measurement_type(command.measurement_type)
     await gateway.ble_send_json(
         "6ba1de6b-3ab6-4d77-9ea1-cb6422720004", setup, command.initiator
     )
@@ -110,12 +123,14 @@ async def start_test_measurement(
 async def start_calibration(
     command: commands.StartCalibrationMeasurement, gateway: gateway.SITGateway
 ):
+    await gateway.set_measurement_type(command.measurement_type)
     await gateway.setup_calibration(command)
 
 
 async def start_single_cali_measurement(
-    command: commands.StartCalibrationMeasurement, gateway: gateway.SITGateway
+    command: commands.StartSingleCalibrationMeasurement, gateway: gateway.SITGateway
 ):
+    logger.debug("Start Single Calibration Measurement")
     await gateway.start_calibration()
 
 

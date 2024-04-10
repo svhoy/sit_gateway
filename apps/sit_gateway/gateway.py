@@ -21,7 +21,7 @@ LOG_CONFIG_PATH = "settings/logging.conf"
 
 logging.config.fileConfig(LOG_CONFIG_PATH)
 # create logger
-logger = logging.getLogger("pi_socket")
+logger = logging.getLogger("sit_gateway")
 
 
 class SITGateway:
@@ -120,6 +120,7 @@ class SITGateway:
         self.test_id = test_id
         self.initiator_device = initiator_device
         self.responder_devices = responder_devices
+
         command = {"type": "measurement_msg", "command": "start"}
         for responder in self.responder_devices:
             await self.ble_send_json(
@@ -190,7 +191,7 @@ class SITGateway:
         elif self.calibration_id != 0:
             await self.bus.handle(
                 events.CalibrationMeasurement(
-                    claibration_id=self.calibration_id,
+                    calibration_id=self.calibration_id,
                     initiator=self.initiator_device,
                     responder=self.get_responder(data.responder),
                     measurement_type=self.measurement_type,
@@ -206,7 +207,7 @@ class SITGateway:
                     fpi=data.fpi,
                 )
             )
-            if self.cali_setup["max_measurement"] == data.measurement:
+            if self.cali_setup["max_measurement"]-1 == data.measurement:
                 await self.stop_measurement()
                 await self.bus.handle(
                     commands.StartSingleCalibrationMeasurement()
@@ -289,6 +290,7 @@ class SITGateway:
             )
 
         else:
+            logger.debug("Calibration Finished")
             await self.bus.handle(
                 events.CalibrationMeasurementFinished(
                     calibration_id=self.calibration_id
@@ -337,6 +339,4 @@ class SITGateway:
         # from responders on ble devices starts with 100
         # so to get index in device list will be:
         index = responder_index % 100
-        logger.debug(f"Index: {index}")
-        logger.debug(f"Responder Index: {responder_index}")
         return self.responder_devices[index]

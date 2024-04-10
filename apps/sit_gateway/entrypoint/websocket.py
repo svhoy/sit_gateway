@@ -42,6 +42,7 @@ class Websocket:
             try:
                 # Process messages received on the connection.
                 async for text_data in self._websocket:
+                    logger.debug(f"Received message: {text_data}")
                     await self.recive(text_data, bus)
             except websockets.ConnectionClosedError as e:
                 logger.warning(e)
@@ -89,7 +90,7 @@ class Websocket:
             package = importlib.import_module(directory)
         except ModuleNotFoundError:
             return dataclasses  # Module not found, return empty dict
-        print(package)
+        logger.debug(f"Package Found: {package}")
 
         for (
                 importer, #pylint: disable=unused-variable
@@ -100,11 +101,14 @@ class Websocket:
         ):
             module = importlib.import_module(modname)
             for name, obj in module.__dict__.items():
-                if (
-                    isinstance(obj, type)
-                    and hasattr(obj, "__annotations__")
-                    and hasattr(obj, "__dataclass_fields__")
-                ):
-                    dataclasses[name] = obj
+                try:
+                    if (
+                        isinstance(obj, type)
+                        and hasattr(obj, "__annotations__")
+                        and hasattr(obj, "__dataclass_fields__")
+                    ):
+                        dataclasses[name] = obj
+                except Exception as e:
+                    logger.error(f"Test: {e}")
 
         return dataclasses

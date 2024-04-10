@@ -91,7 +91,7 @@ async def send_calibration_measurement(
     message = {
         "type": "SaveCalibrationMeasurement",
         "data": {
-            "calibration_id": event.claibration_id,
+            "calibration_id": event.calibration_id,
             "initiator": event.initiator,
             "responder": event.responder,
             "measurement_type": event.measurement_type,
@@ -107,6 +107,7 @@ async def send_calibration_measurement(
             "fpi_final": event.fpi,
         },
     }
+    logger.debug(f"Sending calibration measurement: {message['data']['measurement_type']}")
     await ws.send(json.dumps(message))
 
 

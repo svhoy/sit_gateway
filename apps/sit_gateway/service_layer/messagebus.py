@@ -1,4 +1,14 @@
+import logging
+import logging.config
 from apps.sit_gateway.domain import commands, events
+
+
+
+LOG_CONFIG_PATH = "settings/logging.conf"
+
+logging.config.fileConfig(LOG_CONFIG_PATH)
+# create logger
+logger = logging.getLogger("messagebus")
 
 
 class MessageBus:
@@ -15,7 +25,7 @@ class MessageBus:
             if isinstance(message, events.Event):
                 await self.handle_event(message)
             elif isinstance(message, commands.Command):
-                print(message)
+                logger.debug(message)
                 await self.handle_command(message)
             else:
                 raise Exception(f"{message} was not an Event or Command") #pylint: disable=broad-exception-raised
