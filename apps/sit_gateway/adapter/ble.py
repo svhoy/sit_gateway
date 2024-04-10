@@ -89,7 +89,7 @@ class Ble:
         ): #pylint: disable=unused-argument
         # Datatype 15 char[] (c string) and f->float and I->uint32_t and H->uint8_t
         msg_structure = "15s 15s H I I f f f f f"
-        msg_structure_all = "15s 15s H I I f f f f f f f I H"
+        msg_structure_all = "15s 15s H I I f f f f f f f H H"
         logger.debug(f"MSG Structure: {struct.calcsize(msg_structure)}")
         logger.debug(f"All MSG Structure: {struct.calcsize(msg_structure_all)}")
         logger.debug(f"Data Lenght: {len(data)}")
