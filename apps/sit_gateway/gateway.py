@@ -4,14 +4,18 @@ import json
 import logging
 import logging.config
 
+from cgi import test
+from itertools import permutations
+from turtle import distance
+
 # Third Party
 from bleak import BleakScanner
-from bleak.exc import BleakError
 from bleak.backends.device import BLEDevice
+from bleak.exc import BleakError
 
 # Library
 from apps.sit_gateway.domain import commands, events
-from apps.sit_gateway.domain.data import MsgData
+from apps.sit_gateway.domain.data import MsgData, SimpleMsgData
 from apps.sit_gateway.service_layer.utils import cancel_task
 
 from .adapter.ble import Ble
@@ -28,18 +32,14 @@ class SITGateway:
     def __init__(self) -> None:
         self.ble_list: list[Ble] = []
 
-        self.test_id = None
+        self.test_id: int
         self.calibration_id: int = 0
         self._distance_notify_tasks = set()
         self.measurement_type = "ss_twr"
         self.initiator_device: str
         self.responder_devices: list[str]
-        self.cali_device_list = []
-        self.cali_finished_list = []
-        self.cali_setup = {}
-        self.cali_rounds = 0
-        self.bus = None
-        self.task_group = None
+        self.cali_device_list: list[str]
+        self.is_running = False
 
     def set_dependencies(self, tg, bus):
         self.task_group = tg
@@ -60,6 +60,7 @@ class SITGateway:
         await asyncio.sleep(5.0)
         if ble is not None:
             await asyncio.sleep(5.0)
+            # TODO
             if ble.is_connected():
                 self.ble_list.append(ble)
                 await self.bus.handle(
@@ -138,6 +139,7 @@ class SITGateway:
             self.task_group.create_task(
                 self.enable_notify(responder), name="BLE Notify" + responder
             )
+        self.is_running = True
 
     async def stop_measurement(self):
         command = {"type": "measurement_msg", "command": "stop"}
@@ -152,7 +154,31 @@ class SITGateway:
             self.initiator_device,
         )
         cancel_task("BLE Notify" + self.initiator_device)
-        self.test_id = None
+
+        self.is_running = False
+
+    async def start_cali_measurement(self, devices):
+        command = {"type": "measurement_msg", "command": "start"}
+        for device in devices:
+            await self.ble_send_json(
+                "6ba1de6b-3ab6-4d77-9ea1-cb6422720003",
+                command,
+                device,
+            )
+            self.task_group.create_task(
+                self.enable_notify(device),
+                name="BLE Notify" + device,
+            )
+            await asyncio.sleep(0.5)
+
+    async def stop_cali_measurement(self):
+        command = {"type": "measurement_msg", "command": "stop"}
+        for device in reversed(self.actuale_cali_devices):
+            await self.ble_send_json(
+                "6ba1de6b-3ab6-4d77-9ea1-cb6422720003", command, device
+            )
+            cancel_task("BLE Notify" + device)
+        self.is_running = False
 
     async def enable_notify(self, initiator_device):
         enable_notify = False
@@ -167,73 +193,121 @@ class SITGateway:
             await asyncio.sleep(2)
 
     async def distance_notifcation(
-        self, data: MsgData
+        self, data: MsgData | SimpleMsgData, device: str
     ):
-        if self.test_id is not None:
-            await self.bus.handle(
-                events.TestMeasurement(
-                    test_id=self.test_id,
-                    initiator=self.initiator_device,
-                    responder=self.get_responder(data.responder),
-                    measurement_type=self.measurement_type,
-                    sequence=data.sequence,
-                    measurement=data.measurement,
-                    distance=data.distance,
-                    time_round_1=data.time_round_1,
-                    time_round_2=data.time_round_2,
-                    time_reply_1=data.time_reply_1,
-                    time_reply_2=data.time_reply_2,
-                    nlos=data.nlos,
-                    rssi=data.rssi,
-                    fpi=data.fpi,
+        if isinstance(data, MsgData):
+            # Not a good option but when get full data msg
+            # the response
+            # from device the id is always 8292
+            # so find an option to change this
+
+            if self.measurement_type == "ss_twr":
+                responder = self.responder_devices[0]
+            else:
+                responder = device
+
+            if self.test_id is not None:
+                await self.bus.handle(
+                    events.TestMeasurement(
+                        test_id=self.test_id,
+                        initiator=self.initiator_device,
+                        responder=responder,
+                        measurement_type=self.measurement_type,
+                        sequence=data.sequence,
+                        measurement=data.measurement,
+                        distance=data.distance,
+                        time_round_1=data.time_round_1,
+                        time_round_2=data.time_round_2,
+                        time_reply_1=data.time_reply_1,
+                        time_reply_2=data.time_reply_2,
+                        nlos=data.nlos,
+                        rssi=data.rssi,
+                        fpi=data.fpi,
+                    )
                 )
-            )
-        elif self.calibration_id != 0:
+                if self.test_setup["max_measurement"] - 1 == data.measurement:
+                    await self.stop_measurement()
+                    await self.bus.handle(
+                        events.TestMeasurementFinished(self.test_id)
+                    )
+                    self.test_id = None
+
+            elif self.calibration_id != 0:
+                await self.bus.handle(
+                    events.CalibrationMeasurement(
+                        calibration_id=self.calibration_id,
+                        initiator=self.initiator_device,
+                        responder=responder,
+                        measurement_type=self.measurement_type,
+                        sequence=data.sequence,
+                        measurement=data.measurement,
+                        distance=data.distance,
+                        time_round_1=data.time_round_1,
+                        time_round_2=data.time_round_2,
+                        time_reply_1=data.time_reply_1,
+                        time_reply_2=data.time_reply_2,
+                        nlos=data.nlos,
+                        rssi=data.rssi,
+                        fpi=data.fpi,
+                    )
+                )
+                if self.cali_setup["max_measurement"] - 1 == data.measurement:
+                    await self.stop_measurement()
+                    await self.bus.handle(
+                        commands.StartSingleCalibrationMeasurement()
+                    )
+            else:
+                logger.debug(f"Data: {data}")
+                await self.bus.handle(
+                    events.DistanceMeasurement(
+                        initiator=self.initiator_device,
+                        responder=responder,
+                        measurement_type=self.measurement_type,
+                        sequence=data.sequence,
+                        measurement=data.measurement,
+                        distance=data.distance,
+                        time_round_1=data.time_round_1,
+                        time_round_2=data.time_round_2,
+                        time_reply_1=data.time_reply_1,
+                        time_reply_2=data.time_reply_2,
+                        nlos=data.nlos,
+                        rssi=data.rssi,
+                        fpi=data.fpi,
+                    )
+                )
+        else:
             await self.bus.handle(
-                events.CalibrationMeasurement(
+                events.SimpleCalibrationMeasurement(
                     calibration_id=self.calibration_id,
-                    initiator=self.initiator_device,
-                    responder=self.get_responder(data.responder),
-                    measurement_type=self.measurement_type,
                     sequence=data.sequence,
                     measurement=data.measurement,
-                    distance=data.distance,
-                    time_round_1=data.time_round_1,
-                    time_round_2=data.time_round_2,
+                    devices=self.actuale_cali_devices,
+                    time_m21=data.time_m21,
+                    time_m31=data.time_m31,
+                    time_a21=data.time_a21,
+                    time_a31=data.time_a31,
+                    time_b21=data.time_b21,
+                    time_b31=data.time_b31,
+                    time_tc_i=data.time_tc_i,
+                    time_tc_ii=data.time_tc_ii,
+                    time_tb_i=data.time_tb_i,
+                    time_tb_ii=data.time_tb_ii,
                     time_reply_1=data.time_reply_1,
                     time_reply_2=data.time_reply_2,
-                    nlos=data.nlos,
-                    rssi=data.rssi,
-                    fpi=data.fpi,
+                    time_round_1=data.time_round_1,
+                    time_round_2=data.time_round_2,
+                    distance=data.distance,
                 )
             )
-            if self.cali_setup["max_measurement"]-1 == data.measurement:
-                await self.stop_measurement()
+            if self.cali_setup["max_measurement"] - 1 == data.measurement:
+                await self.stop_cali_measurement()
                 await self.bus.handle(
                     commands.StartSingleCalibrationMeasurement()
                 )
-        else:
-            logger.debug(f"Data: {data}")
-            await self.bus.handle(
-                events.DistanceMeasurement(
-                    initiator=self.initiator_device,
-                    responder=self.get_responder(data.responder),
-                    measurement_type=self.measurement_type,
-                    sequence=data.sequence,
-                    measurement=data.measurement,
-                    distance=data.distance,
-                    time_round_1=data.time_round_1,
-                    time_round_2=data.time_round_2,
-                    time_reply_1=data.time_reply_1,
-                    time_reply_2=data.time_reply_2,
-                    nlos=data.nlos,
-                    rssi=data.rssi,
-                    fpi=data.fpi,
-                )
-            )
 
     async def setup_calibration(
-        self, calibration_setup: commands.StartCalibrationMeasurement
+        self,
+        calibration_setup: commands.StartCalibrationMeasurement,
     ):
         self.calibration_id = calibration_setup.calibration_id
         self.cali_device_list = []
@@ -249,6 +323,7 @@ class SITGateway:
 
         self.cali_setup = {
             "type": "setup_msg",
+            "device_type": "",
             "initiator_device": "",
             "initiator": 1,
             "responder_device": [],
@@ -261,6 +336,116 @@ class SITGateway:
         }
         await self.bus.handle(commands.StartSingleCalibrationMeasurement())
 
+    async def setup_test(
+        self,
+        test_setup: commands.StartTestMeasurement,
+    ):
+        self.test_id = test_setup.test_id
+        self.test_setup = {
+            "type": "setup_msg",
+            "device_type": "",
+            "initiator_device": test_setup.initiator,
+            "initiator": 1,
+            "responder_device": test_setup.responder,
+            "responder": 1,
+            "min_measurement": 0,
+            "max_measurement": test_setup.max_measurement,
+            "measurement_type": test_setup.measurement_type,
+        }
+        await self.set_measurement_type(test_setup.measurement_type)
+        self.test_setup["device_type"] = "initiator"
+        self.test_setup["rx_ant_dly"] = int(
+            (test_setup.init_rx_ant_dly / 1.026e-6) * 63898
+        )
+        self.test_setup["tx_ant_dly"] = int(
+            (test_setup.init_tx_ant_dly / 1.026e-6) * 63898
+        )
+        await self.ble_send_json(
+            "6ba1de6b-3ab6-4d77-9ea1-cb6422720004",
+            self.test_setup,
+            test_setup.initiator,
+        )
+        self.test_setup["device_type"] = "responder"
+
+        for responder in test_setup.responder:
+            self.test_setup["rx_ant_dly"] = int(
+                (test_setup.resp_rx_ant_dly / 1.026e-6) * 63898
+            )
+            self.test_setup["tx_ant_dly"] = int(
+                (test_setup.resp_tx_ant_dly / 1.026e-6) * 63898
+            )
+            await self.ble_send_json(
+                "6ba1de6b-3ab6-4d77-9ea1-cb6422720004",
+                self.test_setup,
+                responder,
+            )
+        await asyncio.sleep(3)
+        await self.start_measurement(
+            initiator_device=test_setup.initiator,
+            responder_devices=test_setup.responder,
+            test_id=test_setup.test_id,
+        )
+
+    async def setup_simple_calibration(
+        self,
+        calibration_setup: commands.StartSimpleCalibrationMeasurement,
+    ):
+        self.is_running = True
+        self.cali_finished_list = []
+        self.calibration_id = calibration_setup.calibration_id
+
+        self.measurement_type = calibration_setup.measurement_type
+
+        self.cali_device_list = list(
+            map(list, permutations(calibration_setup.devices, 3))
+        )
+        self.cali_rounds = len(self.cali_device_list)
+        self.cali_setup = {
+            "type": "setup_msg",
+            "device_type": "",
+            "initiator_device": "",
+            "initiator": 1,
+            "responder_device": [],
+            "responder": 1,
+            "min_measurement": 0,
+            "max_measurement": calibration_setup.max_measurement,
+            "measurement_type": calibration_setup.measurement_type,
+            "rx_ant_dly": calibration_setup.rx_ant_dly,
+            "tx_ant_dly": calibration_setup.tx_ant_dly,
+        }
+
+        await asyncio.sleep(2)
+        await self.bus.handle(commands.StartSingleCalibrationMeasurement())
+
+    async def start_simple_calibration(self):
+        self.is_running = True
+        if self.cali_rounds > len(self.cali_finished_list):
+            self.actuale_cali_devices = self.cali_device_list.pop(0)
+            for idx, device in enumerate(self.actuale_cali_devices):
+                if idx == 0:
+                    self.cali_setup["device_type"] = "A"
+                elif idx == 1:
+                    self.cali_setup["device_type"] = "B"
+                elif idx == 2:
+                    self.cali_setup["device_type"] = "C"
+
+                await self.ble_send_json(
+                    "6ba1de6b-3ab6-4d77-9ea1-cb6422720004",
+                    self.cali_setup,
+                    device,
+                )
+                await asyncio.sleep(0.1)
+            self.cali_finished_list.append(self.actuale_cali_devices)
+            await self.start_cali_measurement(self.actuale_cali_devices)
+        else:
+            logger.debug("Calibration Finished")
+            self.is_running = False
+            await self.bus.handle(
+                events.CalibrationSimpleMeasurementFinished(
+                    calibration_id=self.calibration_id
+                )
+            )
+
     async def start_calibration(self):
         logger.info(f"Cali Round: {self.cali_rounds}")
         logger.info(f"Cali Liste: {self.cali_device_list}")
@@ -268,15 +453,16 @@ class SITGateway:
         if self.cali_rounds > len(self.cali_finished_list):
             cali_devices = self.cali_device_list.pop(0)
             self.cali_setup["initiator_device"] = cali_devices[0]
-
             self.cali_setup["responder_device"] = [cali_devices[1]]
 
+            self.cali_setup["device_type"] = "initiator"
             await self.ble_send_json(
                 "6ba1de6b-3ab6-4d77-9ea1-cb6422720004",
                 self.cali_setup,
                 self.cali_setup["initiator_device"],
             )
 
+            self.cali_setup["device_type"] = "responder"
             await self.ble_send_json(
                 "6ba1de6b-3ab6-4d77-9ea1-cb6422720004",
                 self.cali_setup,
@@ -291,6 +477,7 @@ class SITGateway:
 
         else:
             logger.debug("Calibration Finished")
+            self.is_running = False
             await self.bus.handle(
                 events.CalibrationMeasurementFinished(
                     calibration_id=self.calibration_id
@@ -302,6 +489,7 @@ class SITGateway:
             device = self.get_device(device_name)
             json_msg = json.dumps(command).encode("utf-8")
             await device.write_command(uuid, json_msg)
+            logger.debug(f"JSON Command Sent: {device_name}")
         except BleakError as e:
             logger.error(f"Can't write JSON Command: {e}")
 

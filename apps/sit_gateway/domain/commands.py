@@ -4,7 +4,7 @@ from json import dumps
 
 
 @dataclass
-class Command: #pylint: disable=R0801
+class Command:  # pylint: disable=R0801
     @property
     def __dict__(self):
         buf_dict = {}
@@ -64,8 +64,10 @@ class StartTestMeasurement(Command):
     min_measurement: int
     max_measurement: int
     measurement_type: str = "ds_3_twr"
-    rx_ant_dly: int = 0
-    tx_ant_dly: int = 0
+    init_rx_ant_dly: float = 0
+    init_tx_ant_dly: float = 0
+    resp_rx_ant_dly: float = 0
+    resp_tx_ant_dly: float = 0
 
 
 @dataclass
@@ -79,5 +81,25 @@ class StartCalibrationMeasurement(Command):
 
 
 @dataclass
+class StartSimpleCalibrationMeasurement(Command):
+    calibration_id: int
+    devices: list[str]
+    max_measurement: int
+    measurement_type: str = "two_device"
+    rx_ant_dly: int = 0
+    tx_ant_dly: int = 0
+
+
+@dataclass
 class StartSingleCalibrationMeasurement(Command):
     pass
+
+
+@dataclass
+class StartDebugCalibration(Command):
+    calibration_id: int
+    devices: list[str]
+    measurement_type: str = "simple"
+    max_measurement: int = 0
+    rx_ant_dly: int = 0
+    tx_ant_dly: int = 0

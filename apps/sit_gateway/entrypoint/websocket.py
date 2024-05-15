@@ -23,10 +23,13 @@ class Websocket:
     _websocket: websockets.client.WebSocketClientProtocol
     _uri: str
     dataclasses: dict
+
     def __init__(
         self,
+        #
         host: str = "ws://192.168.0.101:8000/",
         # host: str = "ws://192.168.137.1:8000/",
+        # host: str = "ws://192.168.56.1:8000/",
         path: str = "ws/sit/1",
     ) -> None:
         # self._auth = Authenticator()
@@ -34,9 +37,10 @@ class Websocket:
         self._uri = host + path
         self.dataclasses = self.find_dataclasses_in_directory()
 
-
     async def connect(self, bus):
+        logger.debug(f"Try Connected to: {self._uri}")
         async for _websocket in websockets.client.connect(self._uri):
+
             self._websocket = _websocket
             await bus.handle(commands.RegisterWsClient("PI_Home"))
             try:
@@ -61,10 +65,14 @@ class Websocket:
                 data["type"], data["data"]
             )
             if not (
-                isinstance(message, (events.BleDeviceConnected,
-                                     events.BleDeviceConnectFailed,
-                                     events.BleDeviceConnectError,
-                                    ))
+                isinstance(
+                    message,
+                    (
+                        events.BleDeviceConnected,
+                        events.BleDeviceConnectFailed,
+                        events.BleDeviceConnectError,
+                    ),
+                )
             ):
                 await bus.handle(message)
         except ValueError as e:
@@ -93,10 +101,10 @@ class Websocket:
         logger.debug(f"Package Found: {package}")
 
         for (
-                importer, #pylint: disable=unused-variable
-                modname,
-                ispkg, #pylint: disable=unused-variable
-            ) in pkgutil.walk_packages(
+            importer,  # pylint: disable=unused-variable
+            modname,
+            ispkg,  # pylint: disable=unused-variable
+        ) in pkgutil.walk_packages(
             path=package.__path__, prefix=package.__name__ + "."
         ):
             module = importlib.import_module(modname)

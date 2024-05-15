@@ -1,20 +1,20 @@
-#pylint: disable=unused-argument
+# pylint: disable=unused-argument
 # Standard Library
 import asyncio
-from calendar import c
 import json
+import logging
+import logging.config
 
 # Library
 from apps.sit_gateway import gateway
 from apps.sit_gateway.domain import commands
 from apps.sit_gateway.entrypoint import websocket
 
-import logging
-import logging.config
 
 LOG_CONFIG_PATH = "settings/logging.conf"
 logging.config.fileConfig(LOG_CONFIG_PATH)
 logger = logging.getLogger("command_handler")
+
 
 # Send a register msg to webserver for connection when connection is acepted
 async def register_ws_client(
@@ -59,6 +59,7 @@ async def start_measurement(
 ):
     setup = {
         "type": "setup_msg",
+        "device_type": "",
         "initiator_device": command.initiator,
         "initiator": 1,
         "responder_device": command.responder,
@@ -69,9 +70,11 @@ async def start_measurement(
         "rx_ant_dly": command.rx_ant_dly,
         "tx_ant_dly": command.tx_ant_dly,
     }
+    setup["device_type"] = "initiator"
     await gateway.ble_send_json(
         "6ba1de6b-3ab6-4d77-9ea1-cb6422720004", setup, command.initiator
     )
+    setup["device_type"] = "responder"
     for responder in command.responder:
         await gateway.ble_send_json(
             "6ba1de6b-3ab6-4d77-9ea1-cb6422720004", setup, responder
@@ -87,51 +90,47 @@ async def start_measurement(
 async def stop_measurement(
     command: commands.StopDistanceMeasurement, gateway: gateway.SITGateway
 ):
-    await gateway.stop_measurement()
+    try:
+        await gateway.stop_measurement()
+    except Exception as e:  # pylint: disable=broad-exception-caught
+        logger.error(f"Exception: {e}")
 
 
 async def start_test_measurement(
     command: commands.StartTestMeasurement, gateway: gateway.SITGateway
 ):
-    setup = {
-        "type": "setup_msg",
-        "initiator_device": command.initiator,
-        "initiator": 1,
-        "responder_device": command.responder,
-        "responder": len(command.responder),
-        "min_measurement": command.min_measurement,
-        "max_measurement": command.max_measurement,
-        "rx_ant_dly": command.rx_ant_dly,
-        "tx_ant_dly": command.tx_ant_dly,
-    }
-    await gateway.set_measurement_type(command.measurement_type)
-    await gateway.ble_send_json(
-        "6ba1de6b-3ab6-4d77-9ea1-cb6422720004", setup, command.initiator
-    )
-    for responder in command.responder:
-        await gateway.ble_send_json(
-            "6ba1de6b-3ab6-4d77-9ea1-cb6422720004", setup, responder
-        )
-    await asyncio.sleep(3)
-    await gateway.start_measurement(
-        initiator_device=command.initiator,
-        responder_devices=command.responder,
-        test_id=command.test_id,
-    )
+    await gateway.setup_test(command)
 
 
 async def start_calibration(
-    command: commands.StartCalibrationMeasurement, gateway: gateway.SITGateway
+    command: commands.StartCalibrationMeasurement,
+    gateway: gateway.SITGateway,
 ):
     await gateway.set_measurement_type(command.measurement_type)
     await gateway.setup_calibration(command)
 
 
 async def start_single_cali_measurement(
-    command: commands.StartSingleCalibrationMeasurement, gateway: gateway.SITGateway
+    command: commands.StartSingleCalibrationMeasurement,
+    gateway: gateway.SITGateway,
 ):
     logger.debug("Start Single Calibration Measurement")
-    await gateway.start_calibration()
+    if gateway.measurement_type == "two_device":
+        await gateway.start_simple_calibration()
+    else:
+        await gateway.start_calibration()
+
+
+async def start_simple_calibration(
+    command: (
+        commands.StartSimpleCalibrationMeasurement
+        | commands.StartDebugCalibration
+    ),
+    gateway: gateway.SITGateway,
+):
+    if gateway.is_running is not True:
+        logger.debug("Start Simple Calibration")
+        await gateway.setup_simple_calibration(command)
 
 
 COMMAND_HANDLER = {
@@ -144,4 +143,6 @@ COMMAND_HANDLER = {
     commands.StartTestMeasurement: start_test_measurement,
     commands.StartCalibrationMeasurement: start_calibration,
     commands.StartSingleCalibrationMeasurement: start_single_cali_measurement,
+    commands.StartSimpleCalibrationMeasurement: start_simple_calibration,
+    commands.StartDebugCalibration: start_simple_calibration,
 }
