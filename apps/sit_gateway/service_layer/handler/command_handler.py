@@ -115,10 +115,8 @@ async def start_single_cali_measurement(
     gateway: gateway.SITGateway,
 ):
     logger.debug("Start Single Calibration Measurement")
-    if gateway.measurement_type == "two_device":
-        await gateway.start_simple_calibration()
-    else:
-        await gateway.start_calibration()
+
+    await gateway.start_simple_calibration()
 
 
 async def start_simple_calibration(

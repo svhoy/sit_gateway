@@ -32,7 +32,7 @@ class SITGateway:
     def __init__(self) -> None:
         self.ble_list: list[Ble] = []
 
-        self.test_id: int
+        self.test_id: int = 0
         self.calibration_id: int = 0
         self._distance_notify_tasks = set()
         self.measurement_type = "ss_twr"
@@ -206,7 +206,7 @@ class SITGateway:
             else:
                 responder = device
 
-            if self.test_id is not None:
+            if self.test_id != 0:
                 await self.bus.handle(
                     events.TestMeasurement(
                         test_id=self.test_id,
@@ -234,25 +234,20 @@ class SITGateway:
 
             elif self.calibration_id != 0:
                 await self.bus.handle(
-                    events.CalibrationMeasurement(
+                    events.SimpleCalibrationMeasurement(
                         calibration_id=self.calibration_id,
-                        initiator=self.initiator_device,
-                        responder=responder,
-                        measurement_type=self.measurement_type,
                         sequence=data.sequence,
                         measurement=data.measurement,
-                        distance=data.distance,
-                        time_round_1=data.time_round_1,
-                        time_round_2=data.time_round_2,
+                        devices=self.actuale_cali_devices,
                         time_reply_1=data.time_reply_1,
                         time_reply_2=data.time_reply_2,
-                        nlos=data.nlos,
-                        rssi=data.rssi,
-                        fpi=data.fpi,
+                        time_round_1=data.time_round_1,
+                        time_round_2=data.time_round_2,
+                        distance=data.distance,
                     )
                 )
                 if self.cali_setup["max_measurement"] - 1 == data.measurement:
-                    await self.stop_measurement()
+                    await self.stop_cali_measurement()
                     await self.bus.handle(
                         commands.StartSingleCalibrationMeasurement()
                     )
@@ -423,9 +418,17 @@ class SITGateway:
             self.actuale_cali_devices = self.cali_device_list.pop(0)
             for idx, device in enumerate(self.actuale_cali_devices):
                 if idx == 0:
-                    self.cali_setup["device_type"] = "A"
+                    if self.measurement_type == "two_device":
+                        self.cali_setup["device_type"] = "A"
+                    else:
+                        self.cali_setup["device_type"] = "initiator"
+                        self.cali_setup["initiator_device"] = device
                 elif idx == 1:
-                    self.cali_setup["device_type"] = "B"
+                    if self.measurement_type == "two_device":
+                        self.cali_setup["device_type"] = "B"
+                    else:
+                        self.cali_setup["device_type"] = "responder"
+                        self.cali_setup["responder_device"] = [device]
                 elif idx == 2:
                     self.cali_setup["device_type"] = "C"
 
